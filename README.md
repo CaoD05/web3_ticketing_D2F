@@ -2,20 +2,18 @@
 
 A decentralized ticketing platform where event tickets are issued as NFTs on the blockchain. This helps prevent fraud, enables secure ticket resale, and allows transparent ticket ownership verification.
 
-Example Architecture (idea)
-<
-Frontend (React / Next.js)
-        │
-        │ Web3.js / Ethers.js
-        ▼
-Smart Contracts (Solidity)
-        │
-        ▼
-Blockchain Network (Ethereum / Polygon)
-        │
-        ▼
-IPFS (metadata & assets)
->
+Initial idea
+🏗️ System Architecture
+
+The platform follows a decentralized architecture:
+
+- **Frontend:** React / Next.js user interface
+- **Web3 Layer:** Ethers.js or Web3.js for blockchain interaction
+- **Smart Contracts:** Solidity contracts handling ticket minting and ownership
+- **Blockchain:** Ethereum or Polygon network
+- **Storage:** IPFS for ticket metadata and assets
+
+
 🛠 Tech Stack
 - **Frontend:** React / Next.js
 - **Smart Contracts:** Solidity
