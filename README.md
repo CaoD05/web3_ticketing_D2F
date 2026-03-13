@@ -3,6 +3,7 @@
 A decentralized ticketing platform where event tickets are issued as NFTs on the blockchain. This helps prevent fraud, enables secure ticket resale, and allows transparent ticket ownership verification.
 
 Initial idea
+
 🏗️ System Architecture
 
 The platform follows a decentralized architecture:
