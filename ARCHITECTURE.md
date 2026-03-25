@@ -1,11 +1,21 @@
 # System Architecture & Design
 
-## 🏗️ High-Level Architecture
+## Table of Contents
+
+1. [High-Level Architecture](#high-level-architecture)
+2. [Data Model](#data-model)
+3. [Security & Access Control](#security--access-control)
+4. [Tokenomics & Economics](#tokenomics--economics)
+5. [Workflow Diagrams](#workflow-diagrams)
+
+## High-Level Architecture
+
+The Web3 Ticketing System is built in multiple layers:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Frontend Application                     │
-│  (React/Vue - Web3 Integration, UI/UX)                      │
+│  (React/Vue - Web3 Integration, User Interface)              │
 └────────────────┬────────────────────────────────────────────┘
                  │ Web3.js / Ethers.js
                  │
@@ -13,38 +23,46 @@
 │            Smart Contract Layer (Blockchain)                 │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │  TicketingManagementSystem (ERC721 + Custom Logic)    │ │
-│  │  ┌──────────────┬──────────┬────────┬──────────────┐  │ │
-│  │  │   Events     │ Tickets  │ Resale │ Verification│  │ │
-│  │  └──────────────┴──────────┴────────┴──────────────┘  │ │
+│  │  SimpleTicketing (ERC721 + Custom Logic)              │ │
+│  │  • Event management      • Ticket verification        │ │
+│  │  • Ticket minting       • Resale marketplace         │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │         Role-Based Access Control (RBAC)              │ │
-│  │  - ADMIN_ROLE (Platform operations)                   │ │
-│  │  - EVENT_CREATOR_ROLE (Organizer functions)          │ │
+│  │  • ADMIN_ROLE — Platform operations                  │ │
+│  │  • EVENT_CREATOR_ROLE — Organizer functions         │ │
+│  │  • USER_ROLE — Default permission level (default)   │ │
 │  └────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
                  │
 ┌────────────────▼────────────────────────────────────────────┐
 │              Storage & Indexing Layer                        │
-│  ┌──────────────┬────────────┬─────────────────────────┐   │
-│  │   Events     │ TheGraph   │ IPFS (Metadata)        │   │
-│  │   Logs       │ Subgraph   │ Off-chain Storage      │   │
-│  └──────────────┴────────────┴─────────────────────────┘   │
+│  • Event logs and blockchain events                         │
+│  • Optional: TheGraph subgraphs for indexing               │
+│  • Optional: IPFS for off-chain metadata storage           │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## 📊 Entity Relationship Diagram
+### Key Components
+
+- **Smart Contract**: Deployed on Ethereum/Polygon networks
+- **Frontend**: Web3-enabled application for user interaction
+- **Blockchain Network**: Ethereum, Sepolia, Polygon, or local node
+- **Off-chain Storage**: IPFS (optional) for metadata
+
+## Data Model
+
+### Entities and Relationships
 
 ```
 ┌─────────────────┐
 │     Events      │
 ├─────────────────┤
 │ eventId (PK)    │◄──────────┐
-│ organizer       │           │
+│ organizer       │           │ 1..* relationship
 │ name            │           │
-│ location        │           │ 1..N
+│ location        │           │
 │ startDate       │           │
 │ endDate         │           │
 │ totalTickets    │           │
@@ -65,10 +83,9 @@
                         │ resalePrice     │
                         │ isForResale     │
                         │ issuedAt        │
-                        └─────────────────┘
-                              ◄┤
-                              │ 1..1
-                        ┌─────────────────┐
+                        └────────┬────────┘
+                                 │ 1..1 relationship
+                        ┌────────▼────────┐
                         │  ResaleListings │
                         ├─────────────────┤
                         │ ticketId (FK)   │
@@ -79,126 +96,171 @@
                         └─────────────────┘
 ```
 
-## 🔐 Security Architecture
+### Data Attributes
 
-### Access Control Model
+**Event**:
+- Unique identifier and organizer address
+- Event name, location, start/end times
+- Total tickets available and price per ticket
+- Metadata URI for off-chain data storage
+
+**Ticket**:
+- Unique NFT token ID
+- Event reference
+- Original and current holder addresses
+- Seat/section information and category
+- Verification status and usage status
+- Resale price and listing status
+
+**Resale Listing**:
+- Links ticket to a seller and asking price
+- Tracks active/inactive status
+- Records listing timestamp
+
+## 🔐 Security & Access Control
+
+### Access Control Hierarchy
 
 ```
-                ┌─────────────────────────┐
-                │   DEFAULT_ADMIN_ROLE    │
-                │  (Contract Deployer)    │
-                └────────┬────────────────┘
+                ┌─────────────────────────────────┐
+                │   DEFAULT_ADMIN_ROLE            │
+                │  (Contract Deployer/Owner)      │
+                └────────┬────────────────────────┘
                          │
         ┌────────────────┼────────────────┐
         │                │                │
         ▼                ▼                ▼
-┌──────────────┐ ┌─────────────────┐ ┌─────────────┐
-│  ADMIN_ROLE  │ │ EVENT_CREATOR   │ │ USER_ROLE   │
-│              │ │ (Organizers)    │ │ (Default)   │
-├──────────────┤ ├─────────────────┤ ├─────────────┤
-│ Verify items │ │ Create events   │ │ Buy tickets │
-│ Mark used    │ │ Issue tickets   │ │ Transfer    │
-│ Withdraw $   │ │ Cancel events   │ │ Resell      │
-│ Set fees     │ └─────────────────┘ └─────────────┘
-└──────────────┘
+┌──────────────────┐ ┌────────────────┐ ┌──────────────┐
+│   ADMIN_ROLE     │ │ EVENT_CREATOR  │ │  USER_ROLE   │
+│                  │ │   (Organizer)  │ │  (Default)   │
+├──────────────────┤ ├────────────────┤ ├──────────────┤
+│ • Verify tickets │ │ • Create events│ │ • Buy tickets│
+│ • Mark as used   │ │ • Issue tickets│ │ • Transfer   │
+│ • Withdraw funds │ │ • Cancel events│ │ • Resell     │
+│ • Set fees       │ │ • View revenue │ │ • Verify     │
+└──────────────────┘ └────────────────┘ └──────────────┘
 ```
 
 ### Security Mechanisms
 
-1. **Reentrancy Guards**: `ReentrancyGuard` on payment functions
-2. **Access Control**: Role-based permission system
-3. **Input Validation**: All parameters validated
-4. **Safe Transfers**: Using safe NFT transfer methods
-5. **Event Logging**: Complete audit trail via events
+1. **Reentrancy Protection**: `ReentrancyGuard` on all payment and transfer functions
+2. **Role-Based Access Control**: Granular permissions using OpenZeppelin's AccessControl
+3. **Input Validation**: All user inputs validated before processing
+4. **Safe Transfers**: ERC721 safe transfer methods and checks on ETH transfers
+5. **Event Logging**: Complete audit trail through blockchain event emissions
+6. **Immutable Records**: Blockchain ensures transaction history cannot be altered
 
 ## 💰 Tokenomics & Economics
 
 ### Fee Structure
 
 ```
-Primary Sale (Organizer Price):
-  Ticket: 0.1 ETH
-  ├─ Directly to Organizer: 0.1 ETH
-  └─ Platform Fee: 0 ETH
+Primary Sale (Direct from Organizer):
+  Ticket Price: 0.1 ETH
+  ├─ Organizer Receives: 0.1 ETH (100%)
+  └─ Platform Fee: None
 
-Secondary Sale (Resale):
+Secondary Sale (Resale Marketplace):
   Listing Price: 0.15 ETH
   ├─ Seller Receives: 0.147 ETH (98%)
-  └─ Platform Fee: 0.003 ETH (2%)
+  ├─ Platform Fee: 0.003 ETH (2%)
+  └─ Treasury: Accumulates platform fees
 ```
 
 ### Revenue Model
 
-- **Primary**: 0% (Direct to organizers)
-- **Secondary**: 2% (Adjustable up to 10%)
-- **Treasury**: Receives all platform fees
+- **Primary**: No platform fee — organizers receive full ticket price
+- **Secondary**: 2% platform fee on resales (adjustable up to 10% via governance)
+- **Treasury**: Collects and manages all platform fees
 
-## 🔄 Workflow Diagrams
+### Economic Incentives
+
+- Organizers benefit from direct pricing on primary sales
+- Secondary market enables users to sell unused tickets
+- Platform grows from resale activity without impacting primary sales
+
+## Workflow Diagrams
 
 ### Event Creation Flow
 
 ```
-Organizer
+Event Organizer
    │
-   ├─1. Verify (Admin)
-   │   └─ KYC completed
+   ├─ 1. Setup Event
+   │    └─ Provide: name, location, dates, capacity, price
    │
-   ├─2. Create Event
-   │   └─ Event stored with metadata
+   ├─ 2. Create Event
+   │    └─ Event stored with metadata and settings
    │
-   ├─3. Issue Tickets
-   │   ├─ Mint NFTs
-   │   ├─ Assign seats
-   │   └─ Store metadata URIs
+   ├─ 3. Issue Tickets
+   │    ├─ Mint NFT for each ticket
+   │    ├─ Assign seat numbers and categories
+   │    └─ Attach metadata URIs
    │
-   └─4. Event Active
-       └─ Ready for distribution
+   └─ 4. Event Active
+        └─ Ready for ticket distribution/sales
 ```
 
 ### Ticket Lifecycle
 
 ```
+State Transitions:
+
 Created
    │
-   ├─ Verified (Admin scan at entry)
-   │   │
-   │   └─ Used (Scanned/redeemed)
-   │       │
-   │       └─ Final State (Cannot transfer)
+   ├─ Verified
+   │  └─ Used (Scanned at event entry)
+   │     └─ Final State
    │
    └─ Listed for Resale
-       │
-       ├─ Sold (Ownership transfer)
-       │   │
-       │   └─ Returns to "Created" state
-       │
-       └─ Delisted (No longer for sale)
+      ├─ Purchased
+      │  └─ Returns to "Created" state (new owner)
+      │
+      └─ Delisted
+         └─ Owner keeps ticket
 ```
 
 ### Resale Transaction Flow
 
 ```
-Seller lists ticket
-   │
-   ├─ set isForResale = true
-   ├─ set resalePrice
-   └─ create ResaleListing
-       │
-Buyer purchases
-   │
-   ├─ sends payment (exact amount)
+Step 1: Seller Lists Ticket
+   ├─ Set isForResale = true
+   ├─ Set resalePrice parameter
+   └─ Create ResaleListing entry
+
+Step 2: Buyer Purchases
+   ├─ Send payment (exact resalePrice amount)
    │
    ├─ Platform collects 2% fee
-   │   └─ added to platformBalance
+   │  └─ Added to treasury balance
    │
    ├─ Seller receives 98% of price
-   │   └─ via secure transfer
+   │  └─ Transferred via secure payment function
    │
    └─ Ticket transferred to buyer
-       ├─ currentHolder = buyer
-       ├─ isForResale = false
-       └─ resalePrice = 0
+      ├─ currentHolder = buyer address
+      ├─ isForResale = false (reset)
+      └─ resalePrice = 0 (reset)
 ```
+
+## Integration Points
+
+### External Interactions
+
+- **RPC Endpoints**: Alchemy, Infura, or custom nodes for blockchain communication
+- **IPFS** (Optional): Decentralized storage for event metadata and images
+- **Block Explorers**: Etherscan and PolygonScan for verification and monitoring
+- **Wallets**: MetaMask, WalletConnect for user transaction signing
+
+### Contract Interfaces
+
+- **ERC721**: Standard NFT interface for ticket tokens
+- **AccessControl**: OpenZeppelin's role-based access pattern
+- **ReentrancyGuard**: Protection against reentrancy attacks
+
+---
+
+For implementation details, see [contracts/SimpleTicketing.sol](contracts/SimpleTicketing.sol).
 
 ## 🗄️ Data Storage Optimization
 

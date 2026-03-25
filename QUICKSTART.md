@@ -1,141 +1,150 @@
 # Quick Start Guide - Web3 Ticketing System
 
-## 🚀 Project Setup
+## Prerequisites
 
-### Prerequisites
-- Node.js 16+ and npm
-- Git
-- Basic understanding of Solidity and Ethereum
+Before starting, ensure you have:
 
-### Installation
+- **Node.js 16+** and npm — [Download](https://nodejs.org/)
+- **Git** — For version control
+- **Ethereum wallet** — With private key for deployments
+- **Basic Solidity knowledge** — Recommended for contract interaction
+- **Testnet ETH** — For testing on networks like Sepolia
+
+## Setup
+
+### 1. Clone and Install Dependencies
 
 ```bash
-# Clone the repository
+git clone <repository-url>
 cd smart-contract
-
-# Install dependencies
 npm install
-
-# Copy environment variables
-cp .env.example .env
-# Edit .env with your configuration
 ```
 
-## 📝 Configuration
+### 2. Configure Environment Variables
+
+Copy the example file and add your credentials:
+
+```bash
+cp .env.example .env
+```
 
 Edit `.env` with your settings:
 
 ```env
 PRIVATE_KEY=your_wallet_private_key
 TREASURY_ADDRESS=0x...your_treasury_address...
-ALCHEMY_API_KEY=your_alchemy_key
-ETHERSCAN_API_KEY=your_etherscan_key
+ALCHEMY_API_KEY=your_alchemy_api_key
+ETHERSCAN_API_KEY=your_etherscan_api_key
 ```
 
-## 🧪 Testing
+**Note**: Never commit `.env` to version control. Add it to `.gitignore`.
+
+## 🔧 Development Workflow
+
+### Compile Contracts
+
+```bash
+npm run compile
+```
+
+Output is saved to `./artifacts`.
+
+### Run Tests
 
 ```bash
 # Run all tests
 npm test
 
-# Run tests with gas report
+# Run tests with gas usage report
 npm run test:gas
 
 # Generate coverage report
 npm run test:coverage
 ```
 
-## 🏗️ Compilation
+### Deploy
 
-```bash
-# Compile smart contracts
-npm run compile
+#### Local Testing (Hardhat Network)
 
-# Output: contracts compiled in ./artifacts
-```
-
-## 📤 Deployment
-
-### Local Testing
 ```bash
 # Terminal 1: Start local node
 npm run node
 
-# Terminal 2: Deploy to localhost
+# Terminal 2: In another terminal, deploy
 npx hardhat run scripts/deploy.js --network localhost
 ```
 
-### Testnet (Sepolia)
+#### Deployment to Available Networks
+
 ```bash
+# Sepolia Testnet
 npm run deploy:testnet
-```
 
-### Polygon Mumbai
-```bash
+# Polygon Mumbai Testnet
 npm run deploy:mumbai
-```
 
-### Polygon Mainnet
-```bash
+# Polygon Mainnet
 npm run deploy:polygon
-```
 
-### Mainnet (Ethereum)
-```bash
+# Ethereum Mainnet
 npm run deploy:mainnet
 ```
 
-## 📚 Contract Interaction
+## Contract Interaction
 
 ### Using Hardhat Console
+
+Connect to a network and interact with the deployed contract:
 
 ```bash
 # Connect to testnet
 npx hardhat console --network sepolia
 ```
 
-Then in the console:
+In the console, you can interact with the contract:
 
 ```javascript
-// Load contract
+// Get contract instance
 const ticketing = await ethers.getContractAt(
-  "TicketingManagementSystem",
-  "0x..."  // deployed contract address
+  "SimpleTicketing",
+  "0x..."  // Replace with deployed contract address
 );
 
-// Create event (as organizer)
-const eventId = await ticketing.createEvent(
-  "My Event",
-  "Description",
-  "Location",
-  Math.floor(Date.now() / 1000) + 86400,  // tomorrow
-  Math.floor(Date.now() / 1000) + 172800, // day after
-  1000,  // total tickets
-  ethers.utils.parseEther("0.1"),  // price per ticket
-  "QmIPFSHash"
+// Create an event
+const tx = await ticketing.createEvent(
+  "Concert 2024",
+  "A great concert",
+  "Madison Square Garden",
+  Math.floor(Date.now() / 1000) + 86400,   // Start: tomorrow
+  Math.floor(Date.now() / 1000) + 172800,  // End: day after
+  1000,                                     // Total tickets
+  ethers.utils.parseEther("0.1"),          // Price: 0.1 ETH
+  "QmIPFSHash"                             // Metadata URI
 );
+await tx.wait();
 
-// View event
+// Get event details
 const event = await ticketing.getEvent(1);
 console.log(event);
 ```
 
-## 🔧 Common Tasks
+## Contract Management
 
-### Verify Contract on Etherscan
+### Verify on Etherscan
+
+After deployment, verify your contract on a block explorer:
 
 ```bash
-npx hardhat verify --network sepolia <CONTRACT_ADDRESS> <CONSTRUCTOR_ARGS>
-
-# Example:
-npx hardhat verify --network sepolia 0x... 0xtreasury_address...
+npx hardhat verify --network sepolia <CONTRACT_ADDRESS> <TREASURY_ADDRESS>
 ```
 
 ### Flatten Contract
 
+Create a single file with all dependencies:
+
 ```bash
 npm run flatten
-# Output: Ticket_flattened.sol
+# Output: contracts/SimpleTicketing_flattened.sol
 ```
 
 ### Clean Build Artifacts
@@ -144,9 +153,9 @@ npm run flatten
 npm run clean
 ```
 
-## 📊 Gas Optimization
+## 📊 Gas Costs Reference
 
-Gas costs vary by network. Example on Sepolia testnet:
+Typical gas usage on Sepolia testnet:
 
 | Operation | Gas Cost |
 |-----------|----------|
@@ -158,109 +167,95 @@ Gas costs vary by network. Example on Sepolia testnet:
 | Buy from Resale | ~95,000 |
 | Transfer Ticket | ~60,000 |
 
-Enable gas reporter:
+Generate a gas report for your tests:
+
 ```bash
 REPORT_GAS=true npm test
 ```
 
-## 🔐 Security Checklist
-
-Before deploying to mainnet:
-
-- [ ] Code audit completed
-- [ ] All tests passing
-- [ ] Gas optimization reviewed
-- [ ] Security review of role-based access
-- [ ] Reentrancy protection tested
-- [ ] Event emissions verified
-- [ ] Error handling comprehensive
-
-## 📖 Key Files
+## Project Structure
 
 ```
 smart-contract/
 ├── contracts/
-│   ├── Ticket.sol                      # Main ticketing contract
-│   ├── interfaces/
-│   │   └── ITicketingManagementSystem.sol
-│   └── README.md                       # Detailed documentation
+│   ├── SimpleTicketing.sol           # Main smart contract
+│   └── README.md                     # Contract documentation
 ├── scripts/
-│   ├── deploy.js                       # Deployment script
-│   └── helpers.js                      # Interaction helpers
+│   ├── deploy.js                     # Deployment script
+│   └── helpers.js                    # Utility functions
 ├── test/
-│   └── TicketingSystem.test.js        # Test suite
-├── hardhat.config.js                   # Hardhat configuration
-├── package.json                        # Dependencies
-└── .env.example                        # Environment variables template
+│   └── SimpleTicketing.test.js       # Test suite
+├── hardhat.config.js                 # Hardhat configuration
+├── package.json                      # Dependencies
+└── .env.example                      # Environment template
 ```
 
-## 🚨 Troubleshooting
+## Common Issues & Solutions
 
-### Compilation Errors
-```bash
-npm run compile
-# Check contract syntax in ./contracts/
-```
+### Network Connection Errors
 
-### Network Connection Issues
+**Error**: `Error: could not detect network (event="noNetwork", ...)`
+
+**Solution**: Verify RPC endpoint in `hardhat.config.js` and test the connection:
+
 ```bash
-# Verify RPC endpoint in hardhat.config.js
-# Test connection: npx hardhat run --network <network> <script>
+npx hardhat run --network sepolia <script.js>
 ```
 
 ### Insufficient Funds for Gas
+
+**Error**: `Error: insufficient funds for gas * price + value`
+
+**Solution**: Get testnet ETH:
+- Sepolia: https://sepolia-faucet.pk910.de/
+- Polygon Mumbai: https://faucet.polygon.technology/
+
+### Recompile Contract
+
+If you encounter compilation issues:
+
 ```bash
-# Get testnet ETH from faucet:
-# Sepolia: https://sepolia-faucet.pk910.de/
-# Mumbai: https://faucet.polygon.technology/
+rm -rf artifacts cache
+npm run compile
 ```
 
-### Package.json Errors
+### Clear npm Cache
+
+If installation fails:
+
 ```bash
-# Clear cache and reinstall
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-## 📞 Support & Resources
+## Deployment Checklist
 
-- Hardhat Docs: https://hardhat.org/docs
-- OpenZeppelin Contracts: https://docs.openzeppelin.com/contracts/
-- Solidity Docs: https://docs.soliditylang.org/
-- Ethers.js Docs: https://docs.ethers.org/
+Before deploying to production:
 
-## 🔄 Development Workflow
-
-1. **Make Changes**: Edit contracts in `./contracts`
-2. **Compile**: `npm run compile`
-3. **Test**: `npm test` - ensure all tests pass
-4. **Deploy Testnet**: `npm run deploy:testnet`
-5. **Verify**: Check contract on block explorer
-6. **Deploy Mainnet**: `npm run deploy:mainnet`
-
-## 📋 Deployment Checklist
-
-- [ ] All tests pass locally
-- [ ] Code reviewed
+- [ ] All tests pass: `npm test`
+- [ ] Code reviewed by team
 - [ ] Gas optimization verified
-- [ ] .env configured with mainnet keys
-- [ ] Treasury address set correctly
-- [ ] Initial organizers verified (if applicable)
+- [ ] `.env` properly configured with production keys
+- [ ] Treasury address is correct
 - [ ] Contract verified on block explorer
-- [ ] Deployment addresses saved
-- [ ] Frontend integration ready
+- [ ] Deployment addresses documented
 
-## 🎯 Next Steps
+## Next Steps
 
-1. Set up frontend application
-2. Integrate Web3 wallet connection
-3. Implement event creation UI
-4. Create ticket marketplace interface
-5. Build ticket verification system
-6. Add analytics and monitoring
+1. Review the [ARCHITECTURE.md](ARCHITECTURE.md) for system design details
+2. Study the contract in [contracts/SimpleTicketing.sol](contracts/SimpleTicketing.sol)
+3. Run local tests and deployment
+4. Deploy to Sepolia testnet
+5. Verify the contract on Etherscan
+6. Integrate with frontend application
+
+## Resources
+
+- [Hardhat Documentation](https://hardhat.org/docs)
+- [OpenZeppelin Contracts](https://docs.openzeppelin.com/contracts/)
+- [Solidity Documentation](https://docs.soliditylang.org/)
+- [Ethers.js Documentation](https://docs.ethers.org/)
 
 ---
 
-**Happy Deploying! 🎉**
-
-For issues or questions, open a GitHub issue or contact the team.
+For questions or issues, open a GitHub issue or contact the development team.
