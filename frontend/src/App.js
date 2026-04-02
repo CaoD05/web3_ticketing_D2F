@@ -3,21 +3,27 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import EventDetail from "./pages/EventDetail";
-import Cart from "./pages/Cart";
+//import Buy from "./pages/Buy";
 import Admin from "./pages/Admin";
-import Navbar from "./components/Navbar";
+import MainLayout from "./layouts/MainLayout";
+import AuthLayout from "./layouts/AuthLayout";
 
 function App() {
   return (
     <BrowserRouter>
-      <Navbar />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/event/:id" element={<EventDetail />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/admin" element={<Admin />} />
+        {/* Auth pages - no navbar/footer */}
+        <Route path="/auth" element={<AuthLayout />}>
+          <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
+        </Route>
+
+        {/* Main app pages - with navbar/footer */}
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<Home />} />
+          <Route path="event/:id" element={<EventDetail />} />
+          <Route path="admin" element={<Admin />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

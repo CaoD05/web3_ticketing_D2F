@@ -1,4 +1,4 @@
-export default function Cart() {
+export default function Buy() {
     let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
     const checkout = () => {
