@@ -1,63 +1,48 @@
 const hre = require("hardhat");
+const fs = require("fs");
 
 async function main() {
-  console.log("Starting deployment of SimpleTicketing...");
+  const [deployer, admin, organizer] = await hre.ethers.getSigners();
 
-  // Get deployer accounts
-  const [deployer] = await ethers.getSigners();
-  console.log("Deploying with account:", deployer.address);
+  console.log("Deploying with:", deployer.address);
 
-  // Deploy the ticketing contract
-  const SimpleTicketing = await hre.ethers.getContractFactory(
-    "SimpleTicketing"
-  );
+  // Deploy contract
+  const Ticket = await hre.ethers.getContractFactory("ticket");
+  const ticket = await Ticket.deploy(deployer.address);
+  await ticket.waitForDeployment();
 
-  const ticketing = await SimpleTicketing.deploy();
-  await ticketing.deployed();
+  const address = await ticket.getAddress();
+  console.log("✅ Ticket deployed to:", address);
 
-  console.log("✓ SimpleTicketing deployed to:", ticketing.address);
+  // Grant roles
+  console.log("Granting roles...");
+  await ticket.grantAdminRole(admin.address);
+  await ticket.grantOrganizerRole(organizer.address);
 
-  // Save deployment addresses
+  console.log("✅ Roles granted");
+
+  // Save deployment
+  const network = hre.network.name;
   const deployment = {
-    SimpleTicketing: ticketing.address,
-    Deployer: deployer.address,
-    Network: (await ethers.provider.getNetwork()).name,
-    Timestamp: new Date().toISOString(),
+    Ticket: address,
+    deployer: deployer.address,
+    admin: admin.address,
+    organizer: organizer.address,
   };
 
-  const fs = require("fs");
-  const deploymentPath = `./deployments/${(await ethers.provider.getNetwork()).name}_deployment.json`;
-
-  // Create deployments directory if it doesn't exist
   if (!fs.existsSync("./deployments")) {
     fs.mkdirSync("./deployments");
   }
 
-  fs.writeFileSync(deploymentPath, JSON.stringify(deployment, null, 2));
-  console.log("\n✓ Deployment configuration saved to:", deploymentPath);
+  fs.writeFileSync(
+    `./deployments/${network}_deployment.json`,
+    JSON.stringify(deployment, null, 2)
+  );
 
-  console.log("\n=== Deployment Summary ===");
-  console.log("SimpleTicketing:", ticketing.address);
-  console.log("Deployer:", deployer.address);
-
-  // Verify contract on block explorer (if on a public network)
-  if (process.env.ETHERSCAN_API_KEY && (await ethers.provider.getNetwork()).name !== "hardhat") {
-    console.log("\nVerifying contract on block explorer...");
-    try {
-      await hre.run("verify:verify", {
-        address: ticketing.address,
-        constructorArguments: [],
-      });
-      console.log("✓ Contract verified on block explorer");
-    } catch (error) {
-      console.log("Verification pending or failed:", error.message);
-    }
-  }
+  console.log("📁 Deployment saved to:", `deployments/${network}_deployment.json`);
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});
