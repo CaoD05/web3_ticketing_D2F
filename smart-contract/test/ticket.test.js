@@ -159,12 +159,12 @@ describe("Ticket Contract", function () {
     beforeEach(async function () {
       await ticket.connect(organizer).createEvent(
         "Event",
-        ethers.parseEther("0.1"),
+        ethers.parseEther("50.1"),
         10
       );
 
       await ticket.connect(user1).buyTicket(0, {
-        value: ethers.parseEther("0.1"),
+        value: ethers.parseEther("50.1"),
       });
     });
 

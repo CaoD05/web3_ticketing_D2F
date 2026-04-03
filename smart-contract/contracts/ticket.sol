@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "hardhat/console.sol";
 
 contract ticket is AccessControl {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -97,6 +98,12 @@ contract ticket is AccessControl {
             _eventId,
             msg.sender,
             false
+        );
+
+            console.log(
+        "Transferring from %s to %s %s tokens",
+        msg.sender,
+        address(this),        msg.value
         );
 
         e.sold++;
