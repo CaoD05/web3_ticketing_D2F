@@ -6,23 +6,22 @@ async function main() {
 
   console.log("Deploying with:", deployer.address);
 
-  // Deploy contract
-  const Ticket = await hre.ethers.getContractFactory("ticket");
+  const Ticket = await hre.ethers.getContractFactory("Ticketing");
   const ticket = await Ticket.deploy(deployer.address);
   await ticket.waitForDeployment();
 
   const address = await ticket.getAddress();
-  console.log("✅ Ticket deployed to:", address);
+  console.log("Ticket deployed to:", address);
 
-  // Grant roles
   console.log("Granting roles...");
-  await ticket.grantAdminRole(admin.address);
-  await ticket.grantOrganizerRole(organizer.address);
 
-  console.log("✅ Roles granted");
+  await (await ticket.grantAdminRole(admin.address)).wait();
+  await (await ticket.grantOrganizerRole(organizer.address)).wait();
 
-  // Save deployment
+  console.log("Roles granted");
+
   const network = hre.network.name;
+
   const deployment = {
     Ticket: address,
     deployer: deployer.address,
@@ -30,16 +29,13 @@ async function main() {
     organizer: organizer.address,
   };
 
-  if (!fs.existsSync("./deployments")) {
-    fs.mkdirSync("./deployments");
-  }
+  fs.mkdirSync("./deployments", { recursive: true });
 
-  fs.writeFileSync(
-    `./deployments/${network}_deployment.json`,
-    JSON.stringify(deployment, null, 2)
-  );
+  const path = `./deployments/${network}_deployment.json`;
 
-  console.log("📁 Deployment saved to:", `deployments/${network}_deployment.json`);
+  fs.writeFileSync(path, JSON.stringify(deployment, null, 2));
+
+  console.log("Deployment saved to:", path);
 }
 
 main().catch((err) => {
