@@ -9,6 +9,8 @@ const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || "";
 const INFURA_API_KEY = process.env.INFURA_API_KEY || "";
 
+console.log("Alchemy key:", ALCHEMY_API_KEY);
+
 module.exports = {
   solidity: {
     version: "0.8.19",
@@ -31,7 +33,7 @@ module.exports = {
     },
 
     sepolia: {
-      url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+      url: `https://sepolia.infura.io/v3/${ALCHEMY_API_KEY}`,
       accounts: [PRIVATE_KEY],
       chainId: 11155111,
     },

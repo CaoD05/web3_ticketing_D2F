@@ -1,175 +1,138 @@
 const hre = require("hardhat");
+const fs = require("fs");
 
-/**
- * Common interactions with the Simple Ticketing System
- */
+// Load deployment
+function loadDeployment() {
+  const path = `./deployments/${hre.network.name}_deployment.json`;
 
-// Load deployment configuration
-function loadDeployment(networkName) {
-  const fs = require("fs");
-  const path = `./deployments/${networkName}_deployment.json`;
   if (!fs.existsSync(path)) {
-    throw new Error(`Deployment file not found: ${path}`);
+    throw new Error("Deployment file not found. Run deploy first.");
   }
-  return JSON.parse(fs.readFileSync(path, "utf8"));
+
+  return JSON.parse(fs.readFileSync(path));
 }
 
-// Create event
+// Get contract instance
+async function getTicketContract() {
+  const deployment = loadDeployment();
+
+  return await hre.ethers.getContractAt(
+    "ticket",
+    deployment.Ticket
+  );
+}
+
+// -------------------
+// CREATE EVENT
+// -------------------
 async function createEvent(name, price, totalTickets) {
-  const [creator] = await ethers.getSigners();
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
+  const [_, __, organizer] = await hre.ethers.getSigners();
+  const ticket = await getTicketContract();
 
-  console.log(`Creating event: ${name}`);
-  console.log(`  Price: ${ethers.utils.formatEther(price)} ETH`);
-  console.log(`  Total Tickets: ${totalTickets}`);
+  const tx = await ticket
+    .connect(organizer)
+    .createEvent(name, price, totalTickets);
 
-  const tx = await ticketing.createEvent(name, price, totalTickets);
-  const receipt = await tx.wait();
+  await tx.wait();
 
-  const nextEventId = await ticketing.nextEventId();
-  const eventId = nextEventId - 1;
+  const id = (await ticket.nextEventId()) - 1n;
 
-  console.log("✓ Event created with ID:", eventId.toString());
-  return eventId;
+  console.log("✅ Event created:", id.toString());
+  return id;
 }
 
-// Buy ticket
+// -------------------
+// BUY TICKET
+// -------------------
 async function buyTicket(eventId, price) {
-  const [buyer] = await ethers.getSigners();
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
+  const [_, __, ___, user] = await hre.ethers.getSigners();
+  const ticket = await getTicketContract();
 
-  console.log(`Purchasing ticket for event ${eventId}`);
-  
-  const tx = await ticketing.buyTicket(eventId, {
+  const tx = await ticket.connect(user).buyTicket(eventId, {
     value: price,
   });
 
-  const receipt = await tx.wait();
-  const nextTicketId = await ticketing.nextTicketId();
-  const ticketId = nextTicketId - 1;
+  await tx.wait();
 
-  console.log("✓ Ticket purchased with ID:", ticketId.toString());
-  return ticketId;
+  const id = (await ticket.nextTicketId()) - 1n;
+
+  console.log("🎟 Ticket bought:", id.toString());
+  return id;
 }
 
-// Use ticket (mark as used)
-async function useTicket(ticketId) {
-  const [user] = await ethers.getSigners();
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
+// -------------------
+// VERIFY TICKET
+// -------------------
+async function verifyTicket(ticketId) {
+  const [_, admin] = await hre.ethers.getSigners();
+  const ticket = await getTicketContract();
 
-  console.log(`Using ticket ${ticketId}`);
-  
-  const tx = await ticketing.useTicket(ticketId);
-  const receipt = await tx.wait();
-  console.log("✓ Ticket marked as used, tx hash:", receipt.transactionHash);
+  const tx = await ticket.connect(admin).verifyTicket(ticketId);
+  await tx.wait();
+
+  console.log("✅ Ticket verified:", ticketId.toString());
 }
 
-// Transfer ticket
-async function transferTicket(ticketId, recipientAddress) {
-  const [owner] = await ethers.getSigners();
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
+// -------------------
+// TRANSFER
+// -------------------
+async function transferTicket(ticketId, to) {
+  const [_, __, ___, user] = await hre.ethers.getSigners();
+  const ticket = await getTicketContract();
 
-  console.log(`Transferring ticket ${ticketId} to ${recipientAddress}`);
-  
-  const tx = await ticketing.transferTicket(ticketId, recipientAddress);
-  const receipt = await tx.wait();
-  console.log("✓ Ticket transferred, tx hash:", receipt.transactionHash);
-  return receipt;
+  const tx = await ticket.connect(user).transferTicket(ticketId, to);
+  await tx.wait();
+
+  console.log("🔄 Ticket transferred");
 }
 
-// Get event details
-async function getEventDetails(eventId) {
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
+// -------------------
+// WITHDRAW
+// -------------------
+async function withdrawFunds() {
+  const [_, __, organizer] = await hre.ethers.getSigners();
+  const ticket = await getTicketContract();
 
-  const event = await ticketing.events(eventId);
-  console.log("Event Details:");
-  console.log("  ID:", eventId.toString());
-  console.log("  Name:", event.name);
-  console.log("  Price:", ethers.utils.formatEther(event.price), "ETH");
-  console.log("  Total Tickets:", event.totalTickets.toString());
-  console.log("  Sold:", event.sold.toString());
-  console.log("  Available:", (event.totalTickets - event.sold).toString());
-  console.log("  Organizer:", event.organizer);
-  return event;
+  const tx = await ticket.connect(organizer).withdrawFunds();
+  await tx.wait();
+
+  console.log("💰 Withdraw successful");
 }
 
-// Get ticket details
-async function getTicketDetails(ticketId) {
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
+// -------------------
+// VIEW FUNCTIONS
+// -------------------
+async function getEvent(eventId) {
+  const ticket = await getTicketContract();
+  const e = await ticket.events(eventId);
 
-  const ticket = await ticketing.tickets(ticketId);
-  console.log("Ticket Details:");
-  console.log("  ID:", ticketId.toString());
-  console.log("  Event ID:", ticket.eventId.toString());
-  console.log("  Owner:", ticket.owner);
-  console.log("  Status:", ticket.used ? "USED" : "VALID");
-  return ticket;
+  console.log("Event:", {
+    name: e.name,
+    price: hre.ethers.formatEther(e.price),
+    sold: e.sold.toString(),
+  });
+
+  return e;
 }
 
-// Get next event ID
-async function getNextEventId() {
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
+async function getTicket(ticketId) {
+  const ticket = await getTicketContract();
+  const t = await ticket.tickets(ticketId);
 
-  const nextId = await ticketing.nextEventId();
-  return nextId;
-}
+  console.log("Ticket:", {
+    owner: t.owner,
+    used: t.used,
+  });
 
-// Get next ticket ID
-async function getNextTicketId() {
-  const deployment = loadDeployment((await ethers.provider.getNetwork()).name);
-  
-  const ticketing = await hre.ethers.getContractAt(
-    "SimpleTicketing",
-    deployment.SimpleTicketing
-  );
-
-  const nextId = await ticketing.nextTicketId();
-  return nextId;
+  return t;
 }
 
 module.exports = {
-  loadDeployment,
   createEvent,
   buyTicket,
-  useTicket,
+  verifyTicket,
   transferTicket,
-  getEventDetails,
-  getTicketDetails,
-  getNextEventId,
-  getNextTicketId,
+  withdrawFunds,
+  getEvent,
+  getTicket,
 };
