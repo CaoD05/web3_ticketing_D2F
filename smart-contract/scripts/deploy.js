@@ -1,13 +1,20 @@
 const hre = require("hardhat");
 const fs = require("fs");
+require("dotenv").config();
 
 async function main() {
-  const [deployer, admin, organizer] = await hre.ethers.getSigners();
+  const [deployer] = await hre.ethers.getSigners();
+
+  const adminAddress = process.env.ADMIN_ADDRESS;
+  const organizerAddress = process.env.ORGANIZER_ADDRESS;
 
   console.log("Deploying with:", deployer.address);
+  console.log("Admin:", adminAddress);
+  console.log("Organizer:", organizerAddress);
 
   const Ticket = await hre.ethers.getContractFactory("Ticketing");
   const ticket = await Ticket.deploy(deployer.address);
+
   await ticket.waitForDeployment();
 
   const address = await ticket.getAddress();
@@ -15,8 +22,8 @@ async function main() {
 
   console.log("Granting roles...");
 
-  await (await ticket.grantAdminRole(admin.address)).wait();
-  await (await ticket.grantOrganizerRole(organizer.address)).wait();
+  await (await ticket.grantAdminRole(adminAddress)).wait();
+  await (await ticket.grantOrganizerRole(organizerAddress)).wait();
 
   console.log("Roles granted");
 
@@ -25,8 +32,8 @@ async function main() {
   const deployment = {
     Ticket: address,
     deployer: deployer.address,
-    admin: admin.address,
-    organizer: organizer.address,
+    admin: adminAddress,
+    organizer: organizerAddress,
   };
 
   fs.mkdirSync("./deployments", { recursive: true });
