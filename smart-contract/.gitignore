@@ -46,6 +46,3 @@ Thumbs.db
 # Logs
 *.log
 logs/
-
-# Deployment scripts
-deployments/
