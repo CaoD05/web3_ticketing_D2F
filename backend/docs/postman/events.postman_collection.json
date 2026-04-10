@@ -1,0 +1,62 @@
+{
+  "info": {
+    "_postman_id": "b1f0e84a-0a57-4f31-8a4d-e9f7b52e3f98",
+    "name": "Web3 Ticketing - Events API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for Events endpoints."
+  },
+  "item": [
+    {
+      "name": "Get All Events",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/events",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "events"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"EventName\": \"Web3 Music Night\",\n  \"Description\": \"Live concert with NFT tickets\",\n  \"EventDate\": \"2026-05-01T19:30:00Z\",\n  \"Location\": \"HCMC\",\n  \"ContractAddress\": \"0x1234567890abcdef1234567890abcdef12345678\",\n  \"TotalTickets\": 500,\n  \"TicketsSold\": 0,\n  \"CreatedBy\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/events",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "events"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    }
+  ]
+}
