@@ -22,7 +22,7 @@ function App() {
         {/* Main app pages - with navbar/footer */}
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Home />} />
-            <Route path="event/:id" element={<EventDetail />} />
+          <Route path="event/:id" element={<EventDetail />} />
           <Route path="events" element={<Events />} />
           <Route path="admin" element={<Admin />} />
         </Route>

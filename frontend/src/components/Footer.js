@@ -4,7 +4,7 @@ export default function Footer() {
             {/* Main Content Section */}
             <section className="max-w-[1440px] w-full mx-auto mt-12 mb-6 md:mt-16 md:mb-12">
                 <div className="flex flex-col md:flex-row space-y-10 space-x-0 md:space-x-16 md:space-y-0 px-4 md:px-10 mx-auto">
-                    
+
                     {/* Logo & Tagline */}
                     <div className="flex flex-col flex-grow space-y-4 md:max-w-[25%]">
                         <div className="flex flex-row">
@@ -24,7 +24,7 @@ export default function Footer() {
 
                     {/* Link Columns */}
                     <div className="flex flex-col flex-grow md:flex-row space-x-0 md:space-x-8 space-y-10 md:space-y-0">
-                        
+
                         {/* About Us Column */}
                         <div className="flex flex-col flex-grow space-y-4">
                             <div className="font-semibold text-sm text-[#98a2b3]">ABOUT US</div>
