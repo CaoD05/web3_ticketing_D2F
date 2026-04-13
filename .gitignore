@@ -1,0 +1,19 @@
+# Dependency directories
+node_modules/
+
+# Environment variables — KHÔNG commit lên Git
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

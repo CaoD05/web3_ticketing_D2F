@@ -100,18 +100,12 @@ async function createEvent(eventData) {
   return result.recordset[0];
 }
 
-async function findOnChainEvent(contractAddress, chainEventId) {
-  await ensureEventsSchema();
-
+async function findEventById(eventId) {
   const pool = await poolPromise;
-  const marker = `[chainEventId:${chainEventId}]`;
-
-  const result = await pool
-    .request()
-    .input("ContractAddress", sql.NVarChar(42), contractAddress)
-    .input("Marker", sql.NVarChar(50), marker)
+  const result = await pool.request()
+    .input("EventID", sql.Int, eventId)
     .query(`
-      SELECT TOP 1
+      SELECT
         [EventID],
         [EventName],
         [Description],
@@ -120,71 +114,17 @@ async function findOnChainEvent(contractAddress, chainEventId) {
         [ContractAddress],
         [TotalTickets],
         [TicketsSold],
-        [IsCancelled],
         [CreatedBy],
         [CreatedAt]
       FROM [dbo].[Events]
-      WHERE [ContractAddress] = @ContractAddress
-        AND CHARINDEX(@Marker, ISNULL([Description], '')) > 0
-      ORDER BY [EventID] DESC
+      WHERE [EventID] = @EventID
     `);
 
-  return result.recordset[0] || null;
-}
-
-async function createOnChainEventIfNotExists({
-  chainEventId,
-  eventName,
-  totalTickets,
-  contractAddress,
-  organizer,
-  priceWei,
-}) {
-  const existing = await findOnChainEvent(contractAddress, chainEventId);
-  if (existing) {
-    return existing;
-  }
-
-  const description = `[chainEventId:${chainEventId}] [organizer:${organizer}] [priceWei:${priceWei}]`;
-
-  return createEvent({
-    EventName: eventName,
-    Description: description,
-    EventDate: null,
-    Location: "On-chain (Sepolia)",
-    ContractAddress: contractAddress,
-    TotalTickets: Number(totalTickets),
-    TicketsSold: 0,
-    IsCancelled: false,
-    CreatedBy: null,
-  });
-}
-
-async function markOnChainEventCancelled(contractAddress, chainEventId) {
-  await ensureEventsSchema();
-
-  const pool = await poolPromise;
-  const marker = `[chainEventId:${chainEventId}]`;
-
-  const updated = await pool
-    .request()
-    .input("ContractAddress", sql.NVarChar(42), contractAddress)
-    .input("Marker", sql.NVarChar(50), marker)
-    .query(`
-      UPDATE [dbo].[Events]
-      SET [IsCancelled] = 1
-      OUTPUT INSERTED.*
-      WHERE [ContractAddress] = @ContractAddress
-        AND CHARINDEX(@Marker, ISNULL([Description], '')) > 0
-    `);
-
-  return updated.recordset[0] || null;
+  return result.recordset[0];
 }
 
 module.exports = {
   findAllEvents,
   createEvent,
-  findOnChainEvent,
-  createOnChainEventIfNotExists,
-  markOnChainEventCancelled,
+  findEventById,
 };

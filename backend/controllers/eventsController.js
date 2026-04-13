@@ -111,7 +111,41 @@ async function createEvent(req, res) {
   }
 }
 
+async function getEventById(req, res) {
+  try {
+    const eventId = req.params.id; // Vì route là /events/:id
+    
+    if (!eventId || isNaN(eventId)) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid Event ID",
+      });
+    }
+
+    const event = await eventModel.findEventById(eventId);
+    
+    if (!event) {
+      return res.status(404).json({
+        ok: false,
+        message: "Event not found",
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      data: event,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to fetch event",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   getAllEvents,
   createEvent,
+  getEventById,
 };
