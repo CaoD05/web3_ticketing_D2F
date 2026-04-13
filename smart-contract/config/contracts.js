@@ -3,9 +3,9 @@ import ticketArtifact from "../artifacts/contracts/Ticketing.sol/Ticketing.json"
 export const CONTRACTS = {
   sepolia: {
     // Keep legacy key for existing code paths.
-    Ticket: "0xDb04A3e2d24c904672a5D4CfADDe61EFA0F82430",
+    Ticket: "0x3389B26251eF16fDE80e7CD0096f556Bc41312Cb",
     Ticketing: {
-      address: "0xDb04A3e2d24c904672a5D4CfADDe61EFA0F82430",
+      address: "0x3389B26251eF16fDE80e7CD0096f556Bc41312Cb",
       abi: ticketArtifact.abi,
     },
   },
