@@ -7,7 +7,7 @@
 
 const hre = require("hardhat");
 
-const CONTRACT_ADDRESS = "0xDb04A3e2d24c904672a5D4CfADDe61EFA0F82430";
+const CONTRACT_ADDRESS = "0x3389B26251eF16fDE80e7CD0096f556Bc41312Cb";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 
