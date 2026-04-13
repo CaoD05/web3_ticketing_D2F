@@ -1,21 +1,16 @@
 require("dotenv").config();
 const sql = require("mssql");
 
-const server = process.env.DB_SERVER || process.env.DB_HOST || "localhost";
-const instanceName = process.env.DB_INSTANCE;
-const hasExplicitPort = Boolean(process.env.DB_PORT);
-
 const config = {
   user: process.env.DB_USER || "sa",
   password: process.env.DB_PASSWORD || "",
-  server,
+  server: process.env.DB_SERVER || "localhost",
   database: process.env.DB_NAME || "EventTicketDB",
   port: Number(process.env.DB_PORT) || 1433,
   options: {
     trustServerCertificate: true,
+    instanceName: process.env.DB_INSTANCE || "SQLEXPRESS",
     encrypt: false,
-    // Docker SQL Server normally uses host+port and no named instance.
-    ...(!hasExplicitPort && instanceName ? { instanceName } : {}),
   },
   pool: {
     max: 10,

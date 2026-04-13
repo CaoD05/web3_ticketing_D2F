@@ -1,48 +1,8 @@
 const { sql, poolPromise } = require("../config/db");
 
-let ensureEventsSchemaPromise = null;
-
-async function ensureEventsSchema() {
-  if (!ensureEventsSchemaPromise) {
-    ensureEventsSchemaPromise = (async () => {
-      const pool = await poolPromise;
-      await pool.request().query(`
-        IF COL_LENGTH('dbo.Events', 'IsCancelled') IS NULL
-        BEGIN
-          ALTER TABLE [dbo].[Events]
-          ADD [IsCancelled] [bit] NOT NULL
-              CONSTRAINT [DF_Events_IsCancelled] DEFAULT (0)
-              WITH VALUES;
-        END
-
-        UPDATE [dbo].[Events]
-        SET [IsCancelled] = 1
-        WHERE [IsCancelled] = 0
-          AND CHARINDEX('[cancelled:true]', ISNULL([Description], '')) > 0;
-      `);
-    })().catch((err) => {
-      ensureEventsSchemaPromise = null;
-      throw err;
-    });
-  }
-
-  await ensureEventsSchemaPromise;
-}
-
-async function findAllEvents({ status = "all" } = {}) {
-  await ensureEventsSchema();
-
+async function findAllEvents() {
   const pool = await poolPromise;
-  const request = pool.request();
-
-  let whereClause = "";
-  if (status === "active") {
-    whereClause = "WHERE ISNULL([IsCancelled], 0) = 0";
-  } else if (status === "cancelled") {
-    whereClause = "WHERE ISNULL([IsCancelled], 0) = 1";
-  }
-
-  const result = await request.query(`
+  const result = await pool.request().query(`
     SELECT
       [EventID],
       [EventName],
@@ -52,11 +12,9 @@ async function findAllEvents({ status = "all" } = {}) {
       [ContractAddress],
       [TotalTickets],
       [TicketsSold],
-      [IsCancelled],
       [CreatedBy],
       [CreatedAt]
     FROM [dbo].[Events]
-    ${whereClause}
     ORDER BY [CreatedAt] DESC, [EventID] DESC
   `);
 
@@ -64,8 +22,6 @@ async function findAllEvents({ status = "all" } = {}) {
 }
 
 async function createEvent(eventData) {
-  await ensureEventsSchema();
-
   const pool = await poolPromise;
   const result = await pool
     .request()
@@ -76,11 +32,10 @@ async function createEvent(eventData) {
     .input("ContractAddress", sql.NVarChar(42), eventData.ContractAddress)
     .input("TotalTickets", sql.Int, eventData.TotalTickets)
     .input("TicketsSold", sql.Int, eventData.TicketsSold)
-    .input("IsCancelled", sql.Bit, eventData.IsCancelled == null ? false : eventData.IsCancelled)
     .input("CreatedBy", sql.Int, eventData.CreatedBy)
     .query(`
       INSERT INTO [dbo].[Events]
-        ([EventName], [Description], [EventDate], [Location], [ContractAddress], [TotalTickets], [TicketsSold], [IsCancelled], [CreatedBy])
+        ([EventName], [Description], [EventDate], [Location], [ContractAddress], [TotalTickets], [TicketsSold], [CreatedBy])
       OUTPUT
         INSERTED.[EventID],
         INSERTED.[EventName],
@@ -90,11 +45,10 @@ async function createEvent(eventData) {
         INSERTED.[ContractAddress],
         INSERTED.[TotalTickets],
         INSERTED.[TicketsSold],
-        INSERTED.[IsCancelled],
         INSERTED.[CreatedBy],
         INSERTED.[CreatedAt]
       VALUES
-        (@EventName, @Description, @EventDate, @Location, @ContractAddress, @TotalTickets, @TicketsSold, @IsCancelled, @CreatedBy)
+        (@EventName, @Description, @EventDate, @Location, @ContractAddress, @TotalTickets, @TicketsSold, @CreatedBy)
     `);
 
   return result.recordset[0];
