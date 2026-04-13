@@ -50,7 +50,87 @@ async function getTickets() {
   return result.recordset;
 }
 
+async function checkinTicket(tokenId, ownerWallet) {
+  const pool = await poolPromise;
+
+  // 1. Tìm vé tương ứng theo TokenID và OwnerWallet
+  const checkResult = await pool.request()
+    .input("TokenID", sql.NVarChar(255), tokenId)
+    .input("OwnerWallet", sql.NVarChar(42), ownerWallet)
+    .query(`
+      SELECT * FROM [dbo].[Tickets]
+      WHERE TokenID = @TokenID AND OwnerWallet = @OwnerWallet
+    `);
+
+  if (checkResult.recordset.length === 0) {
+    throw new Error("Vé không tồn tại hoặc ví này không sở hữu vé");
+  }
+
+  const ticket = checkResult.recordset[0];
+
+  // 2. Kiểm tra vé đã được check-in chưa
+  if (ticket.IsUsed === true || ticket.IsUsed === 1) {
+    throw new Error("Vé này đã được sử dụng để check-in trước đó");
+  }
+
+  // 3. Đánh dấu vé đã sử dụng (IsUsed = 1)
+  const updateResult = await pool.request()
+    .input("TokenID", sql.NVarChar(255), tokenId)
+    .input("OwnerWallet", sql.NVarChar(42), ownerWallet)
+    .query(`
+      UPDATE [dbo].[Tickets]
+      SET IsUsed = 1
+      WHERE TokenID = @TokenID AND OwnerWallet = @OwnerWallet;
+
+      SELECT * FROM [dbo].[Tickets] 
+      WHERE TokenID = @TokenID AND OwnerWallet = @OwnerWallet;
+    `);
+
+  return updateResult.recordset[0];
+}
+
+async function getTicketsByWallet(walletAddress) {
+  const pool = await poolPromise;
+  const result = await pool.request()
+    .input("OwnerWallet", sql.NVarChar(42), walletAddress)
+    .query(`
+      SELECT 
+        t.*,
+        e.EventName,
+        e.EventDate
+      FROM [dbo].[Tickets] t
+      LEFT JOIN [dbo].[Events] e ON t.TicketTypeID = e.EventID
+      WHERE t.OwnerWallet = @OwnerWallet
+      ORDER BY t.TicketID DESC
+    `);
+
+  return result.recordset;
+}
+
+async function getMetadata(tokenId) {
+  const pool = await poolPromise;
+  const result = await pool.request()
+    .input("TokenID", sql.NVarChar(255), tokenId)
+    .query(`
+      SELECT
+        t.*,
+        e.EventName
+      FROM [dbo].[Tickets] t
+      LEFT JOIN [dbo].[Events] e ON t.TicketTypeID = e.EventID
+      WHERE t.TokenID = @TokenID
+    `);
+
+  if (result.recordset.length === 0) {
+    throw new Error("Vé không tồn tại");
+  }
+
+  return result.recordset[0];
+}
+
 module.exports = {
   createTicket,
   getTickets,
+  checkinTicket,
+  getTicketsByWallet,
+  getMetadata,
 };

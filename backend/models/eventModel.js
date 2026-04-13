@@ -54,7 +54,31 @@ async function createEvent(eventData) {
   return result.recordset[0];
 }
 
+async function findEventById(eventId) {
+  const pool = await poolPromise;
+  const result = await pool.request()
+    .input("EventID", sql.Int, eventId)
+    .query(`
+      SELECT
+        [EventID],
+        [EventName],
+        [Description],
+        [EventDate],
+        [Location],
+        [ContractAddress],
+        [TotalTickets],
+        [TicketsSold],
+        [CreatedBy],
+        [CreatedAt]
+      FROM [dbo].[Events]
+      WHERE [EventID] = @EventID
+    `);
+
+  return result.recordset[0];
+}
+
 module.exports = {
   findAllEvents,
   createEvent,
+  findEventById,
 };
