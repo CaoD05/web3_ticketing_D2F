@@ -2,9 +2,20 @@ const eventModel = require("../models/eventModel");
 
 async function getAllEvents(_req, res) {
   try {
-    const events = await eventModel.findAllEvents();
+    const statusRaw = String(_req.query.status || "all").toLowerCase();
+    const allowedStatuses = new Set(["all", "active", "cancelled"]);
+
+    if (!allowedStatuses.has(statusRaw)) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid status filter. Use: all | active | cancelled",
+      });
+    }
+
+    const events = await eventModel.findAllEvents({ status: statusRaw });
     return res.status(200).json({
       ok: true,
+      status: statusRaw,
       data: events,
     });
   } catch (error) {
@@ -26,6 +37,7 @@ async function createEvent(req, res) {
       ContractAddress = null,
       TotalTickets,
       TicketsSold = 0,
+      IsCancelled = false,
       CreatedBy = null,
     } = req.body;
 
@@ -68,6 +80,11 @@ async function createEvent(req, res) {
       });
     }
 
+    const parsedIsCancelled =
+      typeof IsCancelled === "boolean"
+        ? IsCancelled
+        : String(IsCancelled).toLowerCase() === "true";
+
     const createdEvent = await eventModel.createEvent({
       EventName,
       Description,
@@ -76,6 +93,7 @@ async function createEvent(req, res) {
       ContractAddress,
       TotalTickets: parsedTotalTickets,
       TicketsSold: parsedTicketsSold,
+      IsCancelled: parsedIsCancelled,
       CreatedBy: parsedCreatedBy,
     });
 
