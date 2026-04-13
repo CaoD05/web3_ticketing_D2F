@@ -25,51 +25,37 @@ export default function Footer() {
                     {/* Link Columns */}
                     <div className="flex flex-col flex-grow md:flex-row space-x-0 md:space-x-8 space-y-10 md:space-y-0">
                         
-                        {/* Column 1 */}
+                        {/* About Us Column */}
                         <div className="flex flex-col flex-grow space-y-4">
-                            <div className="font-semibold text-sm text-[#98a2b3]">SECTION ONE</div>
+                            <div className="font-semibold text-sm text-[#98a2b3]">ABOUT US</div>
                             <div className="flex flex-col space-y-3">
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 1</button>
-                                </div>
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 2</button>
-                                </div>
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 3</button>
-                                </div>
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 4</button>
-                                </div>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">About Us</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Operational Regulations</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Information Privacy Policy</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Payment Privacy Policy</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Payment Method</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Our Partners</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Terms of Use</a>
                             </div>
                         </div>
 
-                        {/* Column 2 */}
+                        {/* Offers Column */}
                         <div className="flex flex-col flex-grow space-y-4">
-                            <div className="font-semibold text-sm text-[#98a2b3]">SECTION TWO</div>
+                            <div className="font-semibold text-sm text-[#98a2b3]">OFFERS</div>
                             <div className="flex flex-col space-y-3">
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 1</button>
-                                </div>
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 2</button>
-                                </div>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">For Customer</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Promotion</a>
                             </div>
                         </div>
 
-                        {/* Column 3 */}
+                        {/* Support Column */}
                         <div className="flex flex-col flex-grow space-y-4">
-                            <div className="font-semibold text-sm text-[#98a2b3]">SECTION THREE</div>
+                            <div className="font-semibold text-sm text-[#98a2b3]">SUPPORT</div>
                             <div className="flex flex-col space-y-3">
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 1</button>
-                                </div>
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 2</button>
-                                </div>
-                                <div className="font-semibold text-base text-white">
-                                    <button className="hover:text-yellow-400 bg-none border-none cursor-pointer p-0 font-semibold">Link 3</button>
-                                </div>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Contact Us</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">FAQ</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Blog</a>
+                                <a href="#" className="text-base text-white hover:text-yellow-400">Instructions</a>
                             </div>
                         </div>
                     </div>

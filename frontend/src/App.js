@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
+import Events from "./pages/Events";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import EventDetail from "./pages/EventDetail";
@@ -21,7 +22,8 @@ function App() {
         {/* Main app pages - with navbar/footer */}
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Home />} />
-          <Route path="event/:id" element={<EventDetail />} />
+            <Route path="event/:id" element={<EventDetail />} />
+          <Route path="events" element={<Events />} />
           <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>

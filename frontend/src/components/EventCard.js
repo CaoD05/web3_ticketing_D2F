@@ -23,7 +23,15 @@ export default function EventCard({ e, loading = false }) {
             />
 
             <div className="p-4">
-                <h2 className="font-bold text-lg">{e?.title || "Untitled Event"}</h2>
+                {e?.category && (
+                    <div className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700 mb-3">
+                        {e.category}
+                    </div>
+                )}
+
+                <h2 className="font-bold text-lg">
+                    {e?.title || "Untitled Event"}
+                </h2>
 
                 <p className="text-gray-500 text-sm mt-1">
                     {e?.date || "Sắp diễn ra"}

@@ -8,6 +8,7 @@ export default function Navbar() {
             </Link>
 
             <div className="flex gap-6 items-center">
+                <Link to="/events" className="hover:text-yellow-400">Sự kiện</Link>
                 <Link to="/auth/login" className="hover:text-yellow-400">Đăng nhập</Link>
                 <Link to="/auth/register" className="hover:text-yellow-400">Đăng ký</Link>
             </div>
