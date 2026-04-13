@@ -45,12 +45,13 @@ function getSignerContract() {
 }
 
 /**
- * listenToBlockchain()
- * Kết nối RPC, lắng nghe event TicketMinted từ Smart Contract thật.
+ * listenToBlockchain(io)
+ * Kết nối RPC, lắng nghe event TicketPurchased từ Smart Contract thật.
  * ABI được load từ backend/abis/TicketContract.json.
- * Mỗi khi event được phát ra → gọi createTicket() lưu vào DB.
+ * Mỗi khi event được phát ra → gọi createTicket() lưu vào DB
+ *                             → emit Socket.io 'newTicketPurchased'.
  */
-function listenToBlockchain() {
+function listenToBlockchain(io) {
   if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === "0xYourTicketingContractAddress") {
     console.warn(
       "[Web3] CONTRACT_ADDRESS chưa được cấu hình → bỏ qua listenToBlockchain()"
@@ -89,6 +90,14 @@ function listenToBlockchain() {
           IsUsed: false,
         });
         console.log("[Web3] ✅ Ticket đã lưu vào DB:", saved);
+
+        // ─── Socket.io: Bắn thông báo real-time khi vé on-chain được lưu ───
+        if (io) {
+          io.emit("newTicketPurchased", {
+            message: "🎉 Một vé mới vừa được phát hành từ Blockchain!",
+            ticket: saved,
+          });
+        }
       } catch (dbErr) {
         console.error("[Web3] ❌ Lỗi khi lưu ticket vào DB:", dbErr.message);
       }
