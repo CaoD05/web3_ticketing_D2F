@@ -1,4 +1,4 @@
-const userModel = require("../models/userModel");
+const prisma = require("../utils/prismaClient");
 
 async function createUser(req, res) {
   try {
@@ -24,11 +24,13 @@ async function createUser(req, res) {
       });
     }
 
-    const createdUser = await userModel.createUser({
-      FullName,
-      Email,
-      WalletAddress,
-      Role,
+    const createdUser = await prisma.user.create({
+      data: {
+        FullName,
+        Email,
+        WalletAddress,
+        Role,
+      }
     });
 
     return res.status(201).json({

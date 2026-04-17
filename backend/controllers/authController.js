@@ -1,6 +1,6 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
-const { sql, poolPromise } = require("../config/db");
+const prisma = require("../utils/prismaClient");
 
 const JWT_SECRET  = process.env.JWT_SECRET;
 const JWT_EXPIRES = "24h";
@@ -29,24 +29,28 @@ async function login(req, res) {
     // Chuẩn hóa địa chỉ ví về chữ thường để so sánh
     const normalizedWallet = walletAddress.toLowerCase();
 
-    // Tìm user trong DB theo WalletAddress
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input("WalletAddress", sql.NVarChar(42), normalizedWallet)
-      .query(`
-        SELECT [UserID], [FullName], [WalletAddress], [Role]
-        FROM [dbo].[Users]
-        WHERE LOWER([WalletAddress]) = @WalletAddress
-      `);
+    // Tìm user trong DB theo WalletAddress sử dụng Prisma (case-insensitive)
+    const user = await prisma.user.findFirst({
+      where: {
+        WalletAddress: {
+          equals: normalizedWallet,
+          mode: 'insensitive' // PostgreSQL only - ignore case
+        }
+      },
+      select: {
+        UserID: true,
+        FullName: true,
+        WalletAddress: true,
+        Role: true
+      }
+    });
 
-    if (result.recordset.length === 0) {
+    if (!user) {
       return res.status(401).json({
         ok: false,
         message: "Ví này chưa được đăng ký trong hệ thống. Vui lòng liên hệ admin.",
       });
     }
-
-    const user = result.recordset[0];
 
     if (!JWT_SECRET) {
       throw new Error("JWT_SECRET chưa được cấu hình trong file .env");

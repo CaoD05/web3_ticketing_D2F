@@ -4,7 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const { Server } = require("socket.io");
 
-const db = require("./config/db");
+const prisma = require("./utils/prismaClient");
 const { getReadOnlyContract, listenToBlockchain } = require("./services/web3");
 const authRoutes = require("./routes/authRoutes");
 const eventsRoutes = require("./routes/eventsRoutes");
@@ -44,7 +44,7 @@ app.use("/api", ticketRoutes);
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/health", async (_req, res) => {
   try {
-    await db.query("SELECT 1 AS ok");
+    await prisma.$queryRaw`SELECT 1`;
     res.status(200).json({
       ok: true,
       message: "Backend is running",

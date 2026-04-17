@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { ethers } = require("ethers");
-const { createTicket } = require("../models/ticketModel");
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 // ─── Import ABI từ file JSON (paste ABI thật của bạn vào backend/abis/TicketContract.json) ───
 const contractABI = require("../abis/TicketContract.json");
@@ -82,12 +83,14 @@ function listenToBlockchain(io) {
       });
 
       try {
-        const saved = await createTicket({
-          TicketTypeID: Number(eventId),   // eventId từ contract → map vào TicketTypeID
-          OwnerWallet:  buyer,             // buyer là địa chỉ người mua
-          TokenID:      ticketId.toString(), // ticketId on-chain
-          TransactionHash: txHash,
-          IsUsed: false,
+        const saved = await prisma.ticket.create({
+          data: {
+            TicketTypeID: Number(eventId),   // eventId từ contract → map vào TicketTypeID
+            OwnerWallet:  buyer,             // buyer là địa chỉ người mua
+            TokenID:      ticketId.toString(), // ticketId on-chain
+            TransactionHash: txHash,
+            IsUsed: false,
+          }
         });
         console.log("[Web3] ✅ Ticket đã lưu vào DB:", saved);
 

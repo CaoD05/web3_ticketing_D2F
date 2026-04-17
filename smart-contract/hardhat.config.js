@@ -6,10 +6,7 @@ require("dotenv").config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || "";
 const INFURA_API_KEY = process.env.INFURA_API_KEY || "";
-
-console.log("Alchemy key:", ALCHEMY_API_KEY);
 
 module.exports = {
   solidity: {
@@ -33,52 +30,33 @@ module.exports = {
     },
 
     sepolia: {
-      url: `https://sepolia.infura.io/v3/${ALCHEMY_API_KEY}`,
-      accounts: [PRIVATE_KEY],
+      url: `https://sepolia.infura.io/v3/${INFURA_API_KEY}`,
+      accounts: [
+        process.env.PRIVATE_KEY,
+        process.env.PRIVATE_KEY_ADMIN,
+        process.env.PRIVATE_KEY_ORGANIZER,
+      ].filter(Boolean),
       chainId: 11155111,
     },
-
-    mumbai: {
-      url: `https://polygon-mumbai.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: [PRIVATE_KEY],
-      chainId: 80001,
-    },
-
-    polygonMainnet: {
-      url: `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: [PRIVATE_KEY],
-      chainId: 137,
-    },
-
-    mainnet: {
-      url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: [PRIVATE_KEY],
-      chainId: 1,
-    },
-
-    arbitrum: {
-      url: `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: [PRIVATE_KEY],
-      chainId: 42161,
-    },
-
-    goerli: {
-      url: `https://eth-goerli.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: [PRIVATE_KEY],
-      chainId: 5,
-    },
+    
   },
 
   etherscan: {
-    apiKey: {
-      mainnet: ETHERSCAN_API_KEY,
-      sepolia: ETHERSCAN_API_KEY,
-      goerli: ETHERSCAN_API_KEY,
-      polygonMumbai: process.env.POLYGONSCAN_API_KEY || "",
-      polygon: process.env.POLYGONSCAN_API_KEY || "",
-      arbitrumOne: process.env.ARBISCAN_API_KEY || "",
-    },
+  apiKey: {
+    sepolia: ETHERSCAN_API_KEY,
   },
+  customChains: [
+    {
+      network: "sepolia",
+      chainId: 11155111,
+      urls: {
+        apiURL: "https://api.etherscan.io/v2/api?chainid=11155111",
+        browserURL: "https://sepolia.etherscan.io",
+      },
+    },
+  ],
+},
+
 
   gasReporter: {
     enabled: process.env.REPORT_GAS === "true",
