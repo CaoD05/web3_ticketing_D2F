@@ -1,19 +1,19 @@
 require("dotenv").config();
-const http    = require("http");
+const http = require("http");
 const express = require("express");
-const cors    = require("cors");
+const cors = require("cors");
 const { Server } = require("socket.io");
 
 const db = require("./config/db");
 const { getReadOnlyContract, listenToBlockchain } = require("./services/web3");
-const authRoutes   = require("./routes/authRoutes");
+const authRoutes = require("./routes/authRoutes");
 const eventsRoutes = require("./routes/eventsRoutes");
-const usersRoutes  = require("./routes/usersRoutes");
+const usersRoutes = require("./routes/usersRoutes");
 const ticketRoutes = require("./routes/ticketRoutes");
 
-const app    = express();
+const app = express();
 const server = http.createServer(app);
-const PORT   = Number(process.env.PORT) || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // ─── Socket.io ───────────────────────────────────────────────────────────────
 const io = new Server(server, {
