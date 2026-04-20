@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -8,7 +8,7 @@ export default function Login() {
     const [remember, setRemember] = useState(false);
 
     const login = () => {
-        axios.post("https://localhost:5001/api/auth/login", {
+        api.post("/auth/login", {
             email, password
         }).then(res => {
             localStorage.setItem("token", res.data.token);

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 import Hero from "../components/Hero";
 import EventCard from "../components/EventCard";
+import normalizeEvent from "../lib/normalizeEvent";
 
 const categories = [
     "All",
@@ -24,8 +25,11 @@ export default function Home() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        axios.get("https://localhost:5001/api/events")
-            .then(res => setEvents(res.data))
+        api.get("/events")
+            .then(res => {
+                const rawEvents = res.data?.data || [];
+                setEvents(rawEvents.map(normalizeEvent));
+            })
             .catch(() => setEvents([]))
             .finally(() => setLoading(false));
     }, []);
@@ -71,7 +75,7 @@ export default function Home() {
                             <EventCard key={idx} loading />
                         ))
                         : filteredEvents.length > 0
-                            ? filteredEvents.map(e => <EventCard key={e.id} e={e} />)
+                            ? filteredEvents.map(e => <EventCard key={e.id || e.title} e={e} />)
                             : (
                                 <div className="col-span-full text-center text-gray-500 py-20">
                                     Không có sự kiện phù hợp với lựa chọn của bạn.

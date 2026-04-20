@@ -1,5 +1,7 @@
 require("dotenv").config();
 const { ethers } = require("ethers");
+const fs = require("fs");
+const path = require("path");
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -9,6 +11,8 @@ const contractABI = require("../abis/TicketContract.json");
 const RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8545";
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+const SYNC_START_BLOCK = process.env.SYNC_START_BLOCK;
+const SYNC_STATE_FILE = path.join(__dirname, "..", "data", "web3-sync-state.json");
 
 // ─── Nhắc nhở cấu hình .env ───
 if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === "0xYourTicketingContractAddress") {
@@ -45,6 +49,238 @@ function getSignerContract() {
   return new ethers.Contract(CONTRACT_ADDRESS, contractABI, wallet);
 }
 
+function ensureSyncStateDir() {
+  const dir = path.dirname(SYNC_STATE_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+function readSyncState() {
+  try {
+    if (!fs.existsSync(SYNC_STATE_FILE)) {
+      return null;
+    }
+
+    const raw = fs.readFileSync(SYNC_STATE_FILE, "utf8");
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn("[Web3] Could not read sync state file, fallback to default sync start:", error.message);
+    return null;
+  }
+}
+
+function writeSyncState(lastProcessedBlock) {
+  try {
+    ensureSyncStateDir();
+    fs.writeFileSync(
+      SYNC_STATE_FILE,
+      JSON.stringify(
+        {
+          contractAddress: CONTRACT_ADDRESS,
+          lastProcessedBlock,
+          updatedAt: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    console.warn("[Web3] Could not persist sync state:", error.message);
+  }
+}
+
+function getConfiguredStartBlock() {
+  if (!SYNC_START_BLOCK) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(SYNC_START_BLOCK, 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    console.warn("[Web3] SYNC_START_BLOCK is invalid, ignoring value:", SYNC_START_BLOCK);
+    return null;
+  }
+
+  return parsed;
+}
+
+function getFromBlockForSync() {
+  const state = readSyncState();
+
+  if (state && state.contractAddress === CONTRACT_ADDRESS && Number.isInteger(state.lastProcessedBlock)) {
+    return state.lastProcessedBlock + 1;
+  }
+
+  const configured = getConfiguredStartBlock();
+  if (configured !== null) {
+    return configured;
+  }
+
+  return 0;
+}
+
+async function persistTicketPurchased(ticketId, eventId, buyer, txHash, io, source) {
+  const tokenId = ticketId.toString();
+
+  try {
+    const saved = await prisma.ticket.create({
+      data: {
+        TicketTypeID: Number(eventId),
+        OwnerWallet: buyer,
+        TokenID: tokenId,
+        TransactionHash: txHash,
+        IsUsed: false,
+      },
+    });
+
+    if (io) {
+      io.emit("newTicketPurchased", {
+        message: "🎉 Một vé mới vừa được phát hành từ Blockchain!",
+        ticket: saved,
+      });
+    }
+
+    console.log(`[Web3] ✅ Saved ticket from ${source}: tokenId=${tokenId}, tx=${txHash ?? "n/a"}`);
+  } catch (dbErr) {
+    if (dbErr?.code === "P2002") {
+      console.log(`[Web3] ℹ️ Ticket already exists (skip): tokenId=${tokenId}`);
+      return;
+    }
+
+    console.error("[Web3] ❌ Failed to save ticket:", dbErr.message);
+  }
+}
+
+async function resolveCreatorUserId(organizerWallet) {
+  if (!organizerWallet) {
+    return null;
+  }
+
+  const creator = await prisma.user.findFirst({
+    where: {
+      WalletAddress: {
+        equals: organizerWallet,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      UserID: true,
+    },
+  });
+
+  return creator?.UserID ?? null;
+}
+
+async function persistEventCreated(contract, eventId, name, totalTickets, organizer, txHash, source) {
+  const normalizedOrganizer = organizer ? organizer.toLowerCase() : null;
+  const eventIdNumber = Number(eventId);
+  const totalTicketsNumber = Number(totalTickets);
+
+  if (!Number.isInteger(eventIdNumber) || eventIdNumber < 0) {
+    console.warn(`[Web3] Invalid eventId from ${source}:`, eventId?.toString?.() ?? eventId);
+    return;
+  }
+
+  if (!Number.isInteger(totalTicketsNumber) || totalTicketsNumber <= 0) {
+    console.warn(`[Web3] Invalid totalTickets from ${source}:`, totalTickets?.toString?.() ?? totalTickets);
+    return;
+  }
+
+  try {
+    const onChainEvent = await contract.events(eventId);
+    const startTime = Number(onChainEvent.startTime);
+    const sold = Number(onChainEvent.sold);
+    const cancelled = Boolean(onChainEvent.cancelled);
+    const createdByUserId = await resolveCreatorUserId(normalizedOrganizer);
+
+    await prisma.event.upsert({
+      where: {
+        EventID: eventIdNumber,
+      },
+      update: {
+        EventName: name,
+        EventDate: Number.isFinite(startTime) && startTime > 0 ? new Date(startTime * 1000) : null,
+        ContractAddress: CONTRACT_ADDRESS,
+        TotalTickets: totalTicketsNumber,
+        TicketsSold: Number.isFinite(sold) && sold >= 0 ? sold : 0,
+        IsCancelled: cancelled,
+        CreatedBy: createdByUserId,
+      },
+      create: {
+        EventID: eventIdNumber,
+        EventName: name,
+        EventDate: Number.isFinite(startTime) && startTime > 0 ? new Date(startTime * 1000) : null,
+        ContractAddress: CONTRACT_ADDRESS,
+        TotalTickets: totalTicketsNumber,
+        TicketsSold: Number.isFinite(sold) && sold >= 0 ? sold : 0,
+        IsCancelled: cancelled,
+        CreatedBy: createdByUserId,
+      },
+    });
+
+    console.log(`[Web3] ✅ Synced EventCreated from ${source}: eventId=${eventIdNumber}, tx=${txHash ?? "n/a"}`);
+  } catch (dbErr) {
+    console.error("[Web3] ❌ Failed to sync EventCreated:", dbErr.message);
+  }
+}
+
+async function syncHistoricalEventCreated(contract, fromBlock, latestBlock) {
+  console.log(`[Web3] Historical sync EventCreated from block ${fromBlock} to ${latestBlock}`);
+  const events = await contract.queryFilter(contract.filters.EventCreated(), fromBlock, latestBlock);
+
+  for (const ev of events) {
+    const [eventId, name, _price, totalTickets, organizer] = ev.args ?? [];
+    if (eventId === undefined || !name || totalTickets === undefined || !organizer) {
+      continue;
+    }
+
+    await persistEventCreated(
+      contract,
+      eventId,
+      name,
+      totalTickets,
+      organizer,
+      ev.transactionHash ?? null,
+      "history"
+    );
+  }
+
+  return events.length;
+}
+
+async function syncHistoricalTicketPurchased(contract, io, fromBlock, latestBlock) {
+  console.log(`[Web3] Historical sync TicketPurchased from block ${fromBlock} to ${latestBlock}`);
+  const events = await contract.queryFilter(contract.filters.TicketPurchased(), fromBlock, latestBlock);
+
+  for (const ev of events) {
+    const [ticketId, eventId, buyer] = ev.args ?? [];
+    if (ticketId === undefined || eventId === undefined || buyer === undefined) {
+      continue;
+    }
+
+    await persistTicketPurchased(ticketId, eventId, buyer, ev.transactionHash ?? null, io, "history");
+  }
+
+  return events.length;
+}
+
+async function syncHistoricalEvents(contract, io) {
+  const latestBlock = await contract.runner.provider.getBlockNumber();
+  const fromBlock = getFromBlockForSync();
+
+  if (fromBlock > latestBlock) {
+    writeSyncState(latestBlock);
+    console.log(`[Web3] Historical sync skipped: fromBlock=${fromBlock} > latest=${latestBlock}`);
+    return;
+  }
+
+  const createdCount = await syncHistoricalEventCreated(contract, fromBlock, latestBlock);
+  const purchasedCount = await syncHistoricalTicketPurchased(contract, io, fromBlock, latestBlock);
+
+  writeSyncState(latestBlock);
+  console.log(`[Web3] Historical sync completed. EventCreated=${createdCount}, TicketPurchased=${purchasedCount}.`);
+}
+
 /**
  * listenToBlockchain(io)
  * Kết nối RPC, lắng nghe event TicketPurchased từ Smart Contract thật.
@@ -52,7 +288,7 @@ function getSignerContract() {
  * Mỗi khi event được phát ra → gọi createTicket() lưu vào DB
  *                             → emit Socket.io 'newTicketPurchased'.
  */
-function listenToBlockchain(io) {
+async function listenToBlockchain(io) {
   if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === "0xYourTicketingContractAddress") {
     console.warn(
       "[Web3] CONTRACT_ADDRESS chưa được cấu hình → bỏ qua listenToBlockchain()"
@@ -66,9 +302,28 @@ function listenToBlockchain(io) {
     // Sử dụng ABI import từ backend/abis/TicketContract.json
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
 
-    console.log(
-      `[Web3] Đang lắng nghe event TicketPurchased trên contract: ${CONTRACT_ADDRESS}`
-    );
+    await syncHistoricalEvents(contract, io);
+
+    console.log(`[Web3] Listening realtime EventCreated + TicketPurchased on contract: ${CONTRACT_ADDRESS}`);
+
+    contract.on("EventCreated", async (eventId, name, _price, totalTickets, organizer, event) => {
+      const txHash = event?.log?.transactionHash ?? event?.transactionHash ?? null;
+
+      await persistEventCreated(
+        contract,
+        eventId,
+        name,
+        totalTickets,
+        organizer,
+        txHash,
+        "realtime"
+      );
+
+      const blockNumber = event?.log?.blockNumber;
+      if (Number.isInteger(blockNumber)) {
+        writeSyncState(blockNumber);
+      }
+    });
 
     // Event signature trong Ticketing.sol:
     // event TicketPurchased(uint256 indexed ticketId, uint256 indexed eventId, address indexed buyer)
@@ -82,27 +337,11 @@ function listenToBlockchain(io) {
         txHash,
       });
 
-      try {
-        const saved = await prisma.ticket.create({
-          data: {
-            TicketTypeID: Number(eventId),   // eventId từ contract → map vào TicketTypeID
-            OwnerWallet:  buyer,             // buyer là địa chỉ người mua
-            TokenID:      ticketId.toString(), // ticketId on-chain
-            TransactionHash: txHash,
-            IsUsed: false,
-          }
-        });
-        console.log("[Web3] ✅ Ticket đã lưu vào DB:", saved);
+      await persistTicketPurchased(ticketId, eventId, buyer, txHash, io, "realtime");
 
-        // ─── Socket.io: Bắn thông báo real-time khi vé on-chain được lưu ───
-        if (io) {
-          io.emit("newTicketPurchased", {
-            message: "🎉 Một vé mới vừa được phát hành từ Blockchain!",
-            ticket: saved,
-          });
-        }
-      } catch (dbErr) {
-        console.error("[Web3] ❌ Lỗi khi lưu ticket vào DB:", dbErr.message);
+      const blockNumber = event?.log?.blockNumber;
+      if (Number.isInteger(blockNumber)) {
+        writeSyncState(blockNumber);
       }
     });
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import api from "../lib/api";
 import EventCard from "../components/EventCard";
+import normalizeEvent from "../lib/normalizeEvent";
 
 const categories = [
     "All",
@@ -22,9 +23,12 @@ export default function Events() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        axios
-            .get("https://localhost:5001/api/events")
-            .then((res) => setEvents(res.data))
+        api
+            .get("/events")
+            .then((res) => {
+                const rawEvents = res.data?.data || [];
+                setEvents(rawEvents.map(normalizeEvent));
+            })
             .catch(() => setEvents([]))
             .finally(() => setLoading(false));
     }, []);

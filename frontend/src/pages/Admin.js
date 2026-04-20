@@ -1,12 +1,12 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../lib/api";
 
 export default function Admin() {
     const [title, setTitle] = useState("");
     const [price, setPrice] = useState("");
 
     const create = () => {
-        axios.post("https://localhost:5001/api/events", {
+        api.post("/events", {
             title,
             price,
             image: "https://via.placeholder.com/300"

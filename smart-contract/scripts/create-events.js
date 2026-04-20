@@ -8,23 +8,23 @@ const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "sepolia_deplo
 
 const EVENTS = [
 	{
-		name: "RAVOLUTION MUSIC FESTIVAL",
+		name: "VPBank Hanoi",
 		price: hre.ethers.parseEther("0.01"),
 		totalTickets: 80n,
 		startOffsetSeconds: 2 * 60 * 60,
 	},
-	// {
-	// 	name: "FANTASY SHOW",
-	// 	price: hre.ethers.parseEther("0.01"),
-	// 	totalTickets: 75n,
-	// 	startOffsetSeconds: 4 * 60 * 60,
-	// },
-	// {
-	// 	name: "ĐÊM BẢO TÀNG",
-	// 	price: hre.ethers.parseEther("0.01"),
-	// 	totalTickets: 100n,
-	// 	startOffsetSeconds: 6 * 60 * 60,
-	// },
+	{
+		name: "FANTASY SHOW",
+		price: hre.ethers.parseEther("0.01"),
+		totalTickets: 75n,
+		startOffsetSeconds: 4 * 60 * 60,
+	},
+	{
+		name: "ĐÊM BẢO TÀNG",
+		price: hre.ethers.parseEther("0.01"),
+		totalTickets: 100n,
+		startOffsetSeconds: 6 * 60 * 60,
+	},
 ];
 
 function loadDeployment() {

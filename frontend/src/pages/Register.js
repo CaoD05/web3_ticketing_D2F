@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 
 export default function Register() {
     const [email, setEmail] = useState("");
@@ -13,7 +13,7 @@ export default function Register() {
             return;
         }
 
-        axios.post("https://localhost:5001/api/auth/register", {
+        api.post("/auth/register", {
             email, password, role: "user"
         }).then(() => {
             alert("Registration successful! Please login.");
