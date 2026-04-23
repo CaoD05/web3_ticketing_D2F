@@ -5,7 +5,10 @@ const prisma = require("../utils/prismaClient");
 const { isAddress } = require("ethers");
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_IDS = (process.env.GOOGLE_CLIENT_ID || "")
+  .split(",")
+  .map((clientId) => clientId.trim())
+  .filter(Boolean);
 const JWT_EXPIRES = "24h";
 
 function normalizeEmail(email) {
@@ -235,7 +238,7 @@ async function googleAuth(req, res) {
       });
     }
 
-    if (!GOOGLE_CLIENT_ID) {
+    if (!GOOGLE_CLIENT_IDS.length) {
       return res.status(500).json({
         ok: false,
         message: "GOOGLE_CLIENT_ID chưa được cấu hình",
@@ -255,10 +258,20 @@ async function googleAuth(req, res) {
 
     const tokenInfo = await tokenInfoResponse.json();
 
-    if (tokenInfo.aud !== GOOGLE_CLIENT_ID) {
+    const tokenAudience = (tokenInfo.aud || "").trim();
+
+    if (!GOOGLE_CLIENT_IDS.includes(tokenAudience)) {
       return res.status(401).json({
         ok: false,
         message: "Google token không khớp client id",
+        ...(process.env.NODE_ENV !== "production"
+          ? {
+              debug: {
+                tokenAudience,
+                allowedClientIds: GOOGLE_CLIENT_IDS,
+              },
+            }
+          : {}),
       });
     }
 

@@ -13,7 +13,7 @@ CREATE TABLE "Users" (
 CREATE TABLE "Events" (
     "EventID" SERIAL PRIMARY KEY,
     "EventName" VARCHAR(200) NOT NULL,
-    "Description" TEXT,
+    "MetaURL" TEXT,
     "EventDate" TIMESTAMPTZ,
     "Location" VARCHAR(200),
     "ContractAddress" CHAR(42), -- Địa chỉ contract của sự kiện (thường là NFT contract)

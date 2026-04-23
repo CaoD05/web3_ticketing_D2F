@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api, { getAuthSession, updateAuthUser } from "../lib/api";
+import api, { clearAuthSession, getAuthSession, updateAuthUser } from "../lib/api";
 
 export default function WalletConnectPrompt() {
   const [session, setSession] = useState(() => getAuthSession());
@@ -44,6 +44,12 @@ export default function WalletConnectPrompt() {
     }
   };
 
+  const logout = () => {
+    clearAuthSession();
+    setSession(null);
+    window.location.href = "/";
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-[#121212] p-6 text-white shadow-2xl shadow-black/50">
@@ -71,6 +77,14 @@ export default function WalletConnectPrompt() {
             className="rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {connecting ? "Connecting..." : "Connect MetaMask"}
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            disabled={connecting}
+            className="rounded-2xl border border-white/20 bg-transparent px-5 py-3 font-semibold text-white/90 transition hover:border-white/40 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            Log out
           </button>
           <div className="flex items-center text-sm text-white/55">
             No manual address. We read the address from MetaMask directly.

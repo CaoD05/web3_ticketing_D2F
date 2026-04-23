@@ -20,6 +20,7 @@ contract Ticketing is AccessControl, ReentrancyGuard {
         uint    startTime;
         address organizer;
         bool    cancelled;
+        string MetaURL; // optional URL for event metadata (e.g. IPFS link)
     }
 
     struct Ticket {
@@ -72,7 +73,7 @@ contract Ticketing is AccessControl, ReentrancyGuard {
         require(_totalTickets > 0,       "Total tickets must be greater than 0");
         require(_startTime > block.timestamp, "Start must be in future");
 
-        events[nextEventId] = Event(_name, _price, _totalTickets, 0, _startTime, msg.sender, false);
+        events[nextEventId] = Event(_name, _price, _totalTickets, 0, _startTime, msg.sender, false, "");
         emit EventCreated(nextEventId, _name, _price, _totalTickets, msg.sender);
         nextEventId++;
     }

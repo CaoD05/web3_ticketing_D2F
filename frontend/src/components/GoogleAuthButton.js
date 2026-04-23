@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+const DEFAULT_GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const SCRIPT_ID = "google-identity-script";
 
 function loadGoogleScript() {
@@ -29,7 +29,11 @@ function loadGoogleScript() {
   });
 }
 
-export default function GoogleAuthButton({ onCredential, label = "Continue with Google" }) {
+export default function GoogleAuthButton({
+  onCredential,
+  label = "Continue with Google",
+  clientId = DEFAULT_GOOGLE_CLIENT_ID,
+}) {
   const buttonRef = useRef(null);
   const callbackRef = useRef(onCredential);
   const [ready, setReady] = useState(false);
@@ -42,7 +46,7 @@ export default function GoogleAuthButton({ onCredential, label = "Continue with 
     let cancelled = false;
 
     async function initialize() {
-      if (!GOOGLE_CLIENT_ID || !buttonRef.current) {
+      if (!clientId || !buttonRef.current) {
         return;
       }
 
@@ -54,7 +58,7 @@ export default function GoogleAuthButton({ onCredential, label = "Continue with 
         }
 
         window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
+          client_id: clientId,
           callback: (response) => {
             callbackRef.current?.(response.credential);
           },
@@ -79,9 +83,9 @@ export default function GoogleAuthButton({ onCredential, label = "Continue with 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [clientId]);
 
-  if (!GOOGLE_CLIENT_ID) {
+  if (!clientId) {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
         Set REACT_APP_GOOGLE_CLIENT_ID to enable Google sign-in.

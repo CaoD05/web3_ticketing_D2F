@@ -20,7 +20,7 @@ This document describes the current Events endpoints for frontend integration.
     {
       "EventID": 1,
       "EventName": "Web3 Music Night",
-      "Description": "Live concert with NFT tickets",
+      "MetaURL": "https://example.com/metadata/web3-music-night.json",
       "EventDate": "2026-05-01T19:30:00.000Z",
       "Location": "HCMC",
       "ContractAddress": "0x1234567890abcdef1234567890abcdef12345678",
@@ -58,7 +58,7 @@ This document describes the current Events endpoints for frontend integration.
 
 #### Optional fields
 
-- `Description` (string or null)
+- `MetaURL` (string or null)
 - `EventDate` (datetime string, e.g. ISO format)
 - `Location` (string, max 200 chars)
 - `ContractAddress` (string, max 42 chars)
@@ -70,7 +70,7 @@ This document describes the current Events endpoints for frontend integration.
 ```json
 {
   "EventName": "Web3 Music Night",
-  "Description": "Live concert with NFT tickets",
+  "MetaURL": "https://example.com/metadata/web3-music-night.json",
   "EventDate": "2026-05-01T19:30:00Z",
   "Location": "HCMC",
   "ContractAddress": "0x1234567890abcdef1234567890abcdef12345678",
@@ -89,7 +89,7 @@ This document describes the current Events endpoints for frontend integration.
   "data": {
     "EventID": 2,
     "EventName": "Web3 Music Night",
-    "Description": "Live concert with NFT tickets",
+    "MetaURL": "https://example.com/metadata/web3-music-night.json",
     "EventDate": "2026-05-01T19:30:00.000Z",
     "Location": "HCMC",
     "ContractAddress": "0x1234567890abcdef1234567890abcdef12345678",

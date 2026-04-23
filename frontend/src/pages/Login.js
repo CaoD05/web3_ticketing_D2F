@@ -5,6 +5,7 @@ import GoogleAuthButton from "../components/GoogleAuthButton";
 
 export default function Login() {
     const navigate = useNavigate();
+    const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(true);
@@ -126,7 +127,11 @@ export default function Login() {
                             </button>
 
                             <div className="pt-2">
-                                <GoogleAuthButton onCredential={handleGoogleCredential} label="Sign in with Google" />
+                                <GoogleAuthButton
+                                    onCredential={handleGoogleCredential}
+                                    label="Sign in with Google"
+                                    clientId={googleClientId}
+                                />
                             </div>
                         </div>
 

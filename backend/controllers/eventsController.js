@@ -31,9 +31,16 @@ async function getAllEvents(_req, res) {
 async function createEvent(req, res) {
   try {
     const {
-      EventName, Description = null, EventDate = null, Location = null, ContractAddress = null,
+      EventName,
+      MetaURL = null,
+      Description,
+      EventDate = null,
+      Location = null,
+      ContractAddress = null,
       TotalTickets, TicketsSold = 0, CreatedBy = null,
     } = req.body;
+
+    const resolvedMetaURL = MetaURL ?? Description ?? null;
 
     if (!EventName || TotalTickets == null) {
       return res.status(400).json({ ok: false, message: "EventName and TotalTickets are required" });
@@ -62,7 +69,7 @@ async function createEvent(req, res) {
     const createdEvent = await prisma.event.create({
       data: {
         EventName,
-        Description,
+        MetaURL: resolvedMetaURL,
         EventDate: parsedEventDate,
         Location,
         ContractAddress,

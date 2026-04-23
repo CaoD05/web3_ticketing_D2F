@@ -37,7 +37,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"EventName\": \"Web3 Music Night\",\n  \"Description\": \"Live concert with NFT tickets\",\n  \"EventDate\": \"2026-05-01T19:30:00Z\",\n  \"Location\": \"HCMC\",\n  \"ContractAddress\": \"0x1234567890abcdef1234567890abcdef12345678\",\n  \"TotalTickets\": 500,\n  \"TicketsSold\": 0,\n  \"CreatedBy\": 1\n}"
+          "raw": "{\n  \"EventName\": \"Web3 Music Night\",\n  \"MetaURL\": \"https://example.com/metadata/web3-music-night.json\",\n  \"EventDate\": \"2026-05-01T19:30:00Z\",\n  \"Location\": \"HCMC\",\n  \"ContractAddress\": \"0x1234567890abcdef1234567890abcdef12345678\",\n  \"TotalTickets\": 500,\n  \"TicketsSold\": 0,\n  \"CreatedBy\": 1\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/events",
