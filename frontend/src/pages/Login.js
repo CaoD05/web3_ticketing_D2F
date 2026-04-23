@@ -1,132 +1,159 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import api from "../lib/api";
+import { Link, useNavigate } from "react-router-dom";
+import api, { setAuthSession } from "../lib/api";
+import GoogleAuthButton from "../components/GoogleAuthButton";
 
 export default function Login() {
+    const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [remember, setRemember] = useState(false);
+    const [remember, setRemember] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
-    const login = () => {
-        api.post("/auth/login", {
-            email, password
-        }).then(res => {
-            localStorage.setItem("token", res.data.token);
-            alert("Login success");
-            // Redirect to home after successful login
-            window.location.href = "/";
-        }).catch(err => {
-            alert("Login failed: " + (err.response?.data?.message || "Unknown error"));
-        });
+    const login = async () => {
+        if (!email.trim() || !password) {
+            setError("Vui lòng nhập email và mật khẩu.");
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+
+        try {
+            const response = await api.post("/auth/login", {
+                email: email.trim(),
+                password,
+            });
+
+            setAuthSession(response.data.token, response.data.user, remember);
+            navigate("/");
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || "Đăng nhập thất bại");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleCredential = async (credential) => {
+        setLoading(true);
+        setError("");
+
+        try {
+            const response = await api.post("/auth/google", { credential });
+            setAuthSession(response.data.token, response.data.user, true);
+            navigate("/");
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || "Đăng nhập Google thất bại");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen w-full" style={{ background: "#181818" }}>
-
-            {/* Top bar */}
+        <div className="min-h-screen w-full bg-[#111111] text-white">
             <div className="flex items-center justify-between px-10 py-4">
                 <div className="flex items-center gap-2">
                     <img src="/logoUTC.png" alt="UTC Logo" className="w-8 h-8" />
                     <span className="text-3xl font-black text-yellow-400">U-Ticket</span>
                 </div>
-                <Link to="/" className="text-sm font-bold text-black bg-yellow-400/80 px-3 py-1 rounded-lg hover:bg-yellow-400 hover:text-black transition">
+                <Link to="/" className="rounded-lg bg-yellow-400/90 px-3 py-1 text-sm font-bold text-black transition hover:bg-yellow-300">
                     Home
                 </Link>
             </div>
 
-            {/* Login component */}
-            <div className="flex justify-center items-center pt-8 pb-16">
-                <div className="shadow-lg rounded-xl overflow-hidden" style={{ width: "48rem", minHeight: "32rem", background: "#ffffff", outline: "3px solid #8B5CF6" }}>
-                    <div className="flex">
-                {/* Login form */}
-                <div className="flex flex-wrap content-center justify-center rounded-l-md bg-white" style={{width: "24rem", height: "32rem"}}>
-                    <div className="w-72">
+            <div className="flex items-center justify-center px-4 pb-16 pt-8">
+                <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl shadow-black/40 md:grid-cols-2">
+                    <div className="flex flex-col justify-center bg-[#151515] p-8 md:p-12">
+                        <div className="mb-8 space-y-3">
+                            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-yellow-400">Welcome back</p>
+                            <h1 className="text-3xl font-black text-white md:text-4xl">Sign in to your account</h1>
+                            <p className="max-w-md text-sm leading-6 text-white/70">
+                                Use your email and password, or continue with Google. After sign-in we’ll ask you to connect MetaMask.
+                            </p>
+                        </div>
 
-                        {/* Heading */}
-                        <h1 className="text-xl font-semibold">Welcome back</h1>
-                        <small className="text-gray-400">Welcome back! Please enter your details</small>
-
-                        {/* Form */}
-                        <form className="mt-4" onSubmit={(e) => { e.preventDefault(); login(); }}>
-                            <div className="mb-3">
-                                <label className="mb-2 block text-xs font-semibold">Email</label>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Email</label>
                                 <input
                                     type="email"
-                                    placeholder="Enter your email"
+                                    placeholder="name@example.com"
                                     value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-1.5 text-gray-500"
-                                    required
+                                    onChange={(event) => setEmail(event.target.value)}
+                                    className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
+                                    autoComplete="email"
                                 />
                             </div>
 
-                            <div className="mb-3">
-                                <label className="mb-2 block text-xs font-semibold">Password</label>
+                            <div>
+                                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Password</label>
                                 <input
                                     type="password"
-                                    placeholder="*****"
+                                    placeholder="Your password"
                                     value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-1.5 text-gray-500"
-                                    required
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
+                                    autoComplete="current-password"
                                 />
                             </div>
 
-                            <div className="mb-3 flex flex-wrap content-center">
-                                <input
-                                    id="remember"
-                                    type="checkbox"
-                                    checked={remember}
-                                    onChange={e => setRemember(e.target.checked)}
-                                    className="mr-1 checked:bg-purple-700"
-                                />
-                                <label htmlFor="remember" className="mr-auto text-xs font-semibold">Remember for 30 days</label>
-                                <button
-                                    type="button"
-                                    onClick={() => alert('Water your reset password action here')}
-                                    className="text-xs font-semibold text-purple-700 hover:text-purple-900"
-                                >
-                                    Forgot password?
-                                </button>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <label className="flex items-center gap-2 text-sm text-white/75">
+                                    <input
+                                        type="checkbox"
+                                        checked={remember}
+                                        onChange={(event) => setRemember(event.target.checked)}
+                                        className="h-4 w-4 rounded border-white/30 bg-transparent text-yellow-400 focus:ring-yellow-400"
+                                    />
+                                    Remember me for 30 days
+                                </label>
                             </div>
 
-                            <div className="mb-3">
-                                <button
-                                    type="submit"
-                                    className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 px-2 py-1.5 rounded-md"
-                                >
-                                    Sign in
-                                </button>
-                                <button
-                                    type="button"
-                                    className="flex flex-wrap justify-center w-full border border-gray-300 hover:border-gray-500 px-2 py-1.5 rounded-md"
-                                >
-                                    <img className="w-5 mr-2" src="https://lh3.googleusercontent.com/COxitqgJr1sJnIDe8-jiKhxDx1FrYbtRHKJ9z_hELisAlapwE9LUPh6fcXIfb5vwpbMl4xl9H9TRFPc5NOO8Sb3VSgIBrfRYvW6cUA" alt="Google" />
-                                    Sign in with Google
-                                </button>
-                            </div>
-                        </form>
+                            {error ? (
+                                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                                    {error}
+                                </div>
+                            ) : null}
 
-                        {/* Footer */}
-                        <div className="text-center">
-                            <span className="text-xs text-gray-400 font-semibold">Don't have account?</span>
-                            <Link to="/auth/register" className="text-xs font-semibold text-purple-700 ml-1">Sign up</Link>
+                            <button
+                                type="button"
+                                onClick={login}
+                                disabled={loading}
+                                className="w-full rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                                {loading ? "Signing in..." : "Sign in"}
+                            </button>
+
+                            <div className="pt-2">
+                                <GoogleAuthButton onCredential={handleGoogleCredential} label="Sign in with Google" />
+                            </div>
+                        </div>
+
+                        <div className="mt-8 text-sm text-white/70">
+                            Don’t have an account?{" "}
+                            <Link to="/auth/register" className="font-semibold text-yellow-400 hover:text-yellow-300">
+                                Sign up
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="relative min-h-[22rem] overflow-hidden bg-[#0f0f0f] md:min-h-full">
+                        <img
+                            className="h-full w-full object-cover opacity-90"
+                            src="https://i.imgur.com/y00srqP.jpg"
+                            alt="Login banner"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-8">
+                            <p className="text-sm uppercase tracking-[0.3em] text-yellow-300/80">Secure entry</p>
+                            <p className="mt-2 max-w-sm text-2xl font-black text-white">
+                                Start with a normal login, then link your wallet once you are inside.
+                            </p>
                         </div>
                     </div>
                 </div>
-
-                {/* Login banner */}
-                <div className="flex flex-wrap content-center justify-center rounded-r-md" style={{width: "24rem", height: "32rem"}}>
-                    <img
-                        className="w-full h-full object-fill"
-                        src="https://i.imgur.com/y00srqP.jpg"
-                        alt="Login banner"
-                    />
-                </div>
-
             </div>
-        </div>
-        </div>
         </div>
     );
 }

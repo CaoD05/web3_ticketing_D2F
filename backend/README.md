@@ -29,6 +29,7 @@ Create/update `.env` in `backend`:
 ```dotenv
 PORT=5000
 JWT_SECRET=replace_with_long_random_secret
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
 
 # Prisma DB connection (Aiven PostgreSQL)
 # If your password has special characters, URL-encode it.
@@ -109,14 +110,28 @@ Check:
 - `JWT_SECRET` exists and is not empty.
 - Restart backend after changing `.env`.
 
-## 9. Available Scripts
+### Google sign-in does not appear
+Check:
+- `GOOGLE_CLIENT_ID` is set in `backend/.env`.
+- `REACT_APP_GOOGLE_CLIENT_ID` is set in the frontend environment.
+- The Google OAuth client allows the current local origin.
+
+## 9. Auth Flow
+
+- `POST /api/auth/register` creates a normal email/password account.
+- `POST /api/auth/login` signs in with email/password.
+- `POST /api/auth/google` accepts a Google ID token and creates or logs in the account.
+- `POST /api/auth/connect-wallet` links MetaMask after login.
+- The UI prompts for MetaMask only after authentication.
+
+## 10. Available Scripts
 
 From `backend/package.json`:
 
 - `npm run start` -> `node server.js`
 - `npm run dev` -> `node server.js`
 
-## 10. Security Reminder
+## 11. Security Reminder
 
 - Never commit real secrets in `.env`.
 - Rotate database password/private keys immediately if exposed.

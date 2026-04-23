@@ -11,7 +11,9 @@ model User {
   UserID        Int      @id @default(autoincrement()) @map("UserID")
   FullName      String   @map("FullName") @db.VarChar(100)
   Email         String?  @unique @map("Email") @db.VarChar(100)
-  WalletAddress String   @unique @map("WalletAddress") @db.VarChar(42)
+  PasswordHash  String?  @map("PasswordHash") @db.VarChar(255)
+  GoogleSub     String?  @unique @map("GoogleSub") @db.VarChar(128)
+  WalletAddress String?  @unique @map("WalletAddress") @db.VarChar(42)
   Role          String?  @default("user") @map("Role") @db.VarChar(20)
   CreatedAt     DateTime? @default(now()) @map("CreatedAt")
 

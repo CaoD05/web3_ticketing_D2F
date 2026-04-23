@@ -68,3 +68,9 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+### Auth setup
+
+- Set `REACT_APP_API_BASE_URL` if the backend is not running at `http://localhost:5000/api`.
+- Set `REACT_APP_GOOGLE_CLIENT_ID` to enable the Google sign-in button.
+- After login or registration, the app will prompt the user to connect MetaMask before using wallet-based features.
