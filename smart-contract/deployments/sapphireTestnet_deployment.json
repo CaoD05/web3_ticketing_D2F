@@ -1,0 +1,12 @@
+{
+  "Ticket": "0x6c577eA50f7fBB6a03e24Ea1bB9B2D2567A15c5A",
+  "Ticketing": {
+    "address": "0x6c577eA50f7fBB6a03e24Ea1bB9B2D2567A15c5A"
+  },
+  "deployer": "0x65381F13Ff40bC3134B9B57f2A3FAD63fB687436",
+  "admin": "0xA693cE0367a9455F02AB3a1a48e17D5d25286E4c",
+  "organizer": "0xD589B90703fAf5a2eeBD6e3CEaD46D3b525F2739",
+  "deploymentTime": "2026-05-01T15:31:29.561Z",
+  "network": "sapphireTestnet",
+  "chainId": 23295
+}

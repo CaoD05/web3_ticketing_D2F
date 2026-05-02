@@ -4,7 +4,7 @@ const path = require("path");
 
 require("dotenv").config();
 
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "sepolia_deployment.json");
+const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", `${hre.network.name}_deployment.json`);
 
 function loadDeployment() {
 	if (!fs.existsSync(DEPLOYMENT_FILE)) {
@@ -33,7 +33,7 @@ async function main() {
 	const contractAddress = deployment.Ticketing?.address ?? deployment.Ticket;
 
 	if (!contractAddress) {
-		throw new Error("No deployed Ticketing address found in sepolia deployment file.");
+		throw new Error(`No deployed Ticketing address found in ${hre.network.name} deployment file.`);
 	}
 
 	const provider = hre.ethers.provider;
@@ -41,7 +41,7 @@ async function main() {
 	const latestBlock = await provider.getBlock("latest");
 	const now = BigInt(latestBlock.timestamp);
 
-	console.log("Checking event state on Sepolia...");
+	console.log(`Checking event state on ${hre.network.name}...`);
 	console.log("Contract:", contractAddress);
 	console.log("Block:", latestBlock.number);
 	console.log("Timestamp:", latestBlock.timestamp);

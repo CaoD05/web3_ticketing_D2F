@@ -75,7 +75,7 @@ export default function Home() {
                             <EventCard key={idx} loading />
                         ))
                         : filteredEvents.length > 0
-                            ? filteredEvents.map(e => <EventCard key={e.id || e.title} e={e} />)
+                            ? filteredEvents.map(e => <EventCard key={e.id ?? e.title} e={e} />)
                             : (
                                 <div className="col-span-full text-center text-gray-500 py-20">
                                     Không có sự kiện phù hợp với lựa chọn của bạn.

@@ -5,8 +5,8 @@ const path = require("path");
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// ─── Import ABI từ file JSON (paste ABI thật của bạn vào backend/abis/TicketContract.json) ───
-const contractABI = require("../abis/TicketContract.json");
+// ─── Import ABI từ file JSON (paste ABI thật của bạn vào backend/abis/Ticketing.abi.json) ───
+const contractABI = require("../abis/Ticketing.abi.json");
 
 const RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8545";
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "";
@@ -171,9 +171,10 @@ async function resolveCreatorUserId(organizerWallet) {
   return creator?.UserID ?? null;
 }
 
-async function persistEventCreated(contract, eventId, name, totalTickets, organizer, txHash, source) {
+async function persistEventCreated(contract, eventId, name, price, totalTickets, organizer, txHash, source) {
   const normalizedOrganizer = organizer ? organizer.toLowerCase() : null;
   const eventIdNumber = Number(eventId);
+  const eventPriceWei = price?.toString?.() ?? String(price ?? "0");
   const totalTicketsNumber = Number(totalTickets);
 
   if (!Number.isInteger(eventIdNumber) || eventIdNumber < 0) {
@@ -199,6 +200,7 @@ async function persistEventCreated(contract, eventId, name, totalTickets, organi
       },
       update: {
         EventName: name,
+        Price: eventPriceWei,
         EventDate: Number.isFinite(startTime) && startTime > 0 ? new Date(startTime * 1000) : null,
         ContractAddress: CONTRACT_ADDRESS,
         TotalTickets: totalTicketsNumber,
@@ -209,6 +211,7 @@ async function persistEventCreated(contract, eventId, name, totalTickets, organi
       create: {
         EventID: eventIdNumber,
         EventName: name,
+        Price: eventPriceWei,
         EventDate: Number.isFinite(startTime) && startTime > 0 ? new Date(startTime * 1000) : null,
         ContractAddress: CONTRACT_ADDRESS,
         TotalTickets: totalTicketsNumber,
@@ -224,13 +227,42 @@ async function persistEventCreated(contract, eventId, name, totalTickets, organi
   }
 }
 
+/**
+ * Queries logs in chunks to handle RPC block range limits (e.g., Sapphire max 100 blocks)
+ * @param {*} contract - ethers.Contract instance
+ * @param {*} filter - Event filter from contract.filters.*()
+ * @param {number} fromBlock - Start block
+ * @param {number} toBlock - End block
+ * @param {number} maxBlocksPerQuery - Max blocks per single query (default 100 for Sapphire)
+ * @returns {Array} Combined events from all chunks
+ */
+async function queryFilterInChunks(contract, filter, fromBlock, toBlock, maxBlocksPerQuery = 100) {
+  const allEvents = [];
+  let currentFrom = fromBlock;
+
+  while (currentFrom <= toBlock) {
+    const currentTo = Math.min(currentFrom + maxBlocksPerQuery - 1, toBlock);
+    try {
+      const events = await contract.queryFilter(filter, currentFrom, currentTo);
+      allEvents.push(...events);
+      console.log(`[Web3] Queried blocks ${currentFrom}-${currentTo}, found ${events.length} events`);
+    } catch (err) {
+      console.error(`[Web3] Error querying blocks ${currentFrom}-${currentTo}:`, err.message);
+      // Continue with next chunk instead of failing completely
+    }
+    currentFrom = currentTo + 1;
+  }
+
+  return allEvents;
+}
+
 async function syncHistoricalEventCreated(contract, fromBlock, latestBlock) {
-  console.log(`[Web3] Historical sync EventCreated from block ${fromBlock} to ${latestBlock}`);
-  const events = await contract.queryFilter(contract.filters.EventCreated(), fromBlock, latestBlock);
+  console.log(`[Web3] Historical sync EventCreated from block ${fromBlock} to ${latestBlock} (chunked, max 100 blocks/query)`);
+  const events = await queryFilterInChunks(contract, contract.filters.EventCreated(), fromBlock, latestBlock);
 
   for (const ev of events) {
-    const [eventId, name, _price, totalTickets, organizer] = ev.args ?? [];
-    if (eventId === undefined || !name || totalTickets === undefined || !organizer) {
+    const [eventId, name, price, totalTickets, organizer] = ev.args ?? [];
+    if (eventId === undefined || !name || price === undefined || totalTickets === undefined || !organizer) {
       continue;
     }
 
@@ -238,6 +270,7 @@ async function syncHistoricalEventCreated(contract, fromBlock, latestBlock) {
       contract,
       eventId,
       name,
+      price,
       totalTickets,
       organizer,
       ev.transactionHash ?? null,
@@ -249,8 +282,8 @@ async function syncHistoricalEventCreated(contract, fromBlock, latestBlock) {
 }
 
 async function syncHistoricalTicketPurchased(contract, io, fromBlock, latestBlock) {
-  console.log(`[Web3] Historical sync TicketPurchased from block ${fromBlock} to ${latestBlock}`);
-  const events = await contract.queryFilter(contract.filters.TicketPurchased(), fromBlock, latestBlock);
+  console.log(`[Web3] Historical sync TicketPurchased from block ${fromBlock} to ${latestBlock} (chunked, max 100 blocks/query)`);
+  const events = await queryFilterInChunks(contract, contract.filters.TicketPurchased(), fromBlock, latestBlock);
 
   for (const ev of events) {
     const [ticketId, eventId, buyer] = ev.args ?? [];
@@ -306,13 +339,14 @@ async function listenToBlockchain(io) {
 
     console.log(`[Web3] Listening realtime EventCreated + TicketPurchased on contract: ${CONTRACT_ADDRESS}`);
 
-    contract.on("EventCreated", async (eventId, name, _price, totalTickets, organizer, event) => {
+    contract.on("EventCreated", async (eventId, name, price, totalTickets, organizer, event) => {
       const txHash = event?.log?.transactionHash ?? event?.transactionHash ?? null;
 
       await persistEventCreated(
         contract,
         eventId,
         name,
+        price,
         totalTickets,
         organizer,
         txHash,

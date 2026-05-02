@@ -4,7 +4,9 @@
   "description": "",
   "main": "server.js",
   "scripts": {
+    "prestart": "prisma generate",
     "start": "node server.js",
+    "predev": "prisma generate",
     "dev": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

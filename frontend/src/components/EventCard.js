@@ -37,12 +37,8 @@ export default function EventCard({ e, loading = false }) {
                     {e?.date || "Sắp diễn ra"}
                 </p>
 
-                <div className="flex justify-between items-center mt-3">
-                    <span className="text-red-500 font-bold">
-                        {e?.price ? `${e.price} VND` : "0 VND"}
-                    </span>
-
-                    {e?.id ? (
+                <div className="flex justify-end items-center mt-3">
+                    {e?.id != null ? (
                         <Link to={`/event/${e.id}`}>
                             <button className="bg-black text-white px-3 py-1 rounded-lg hover:bg-gray-800">
                                 Chi tiết

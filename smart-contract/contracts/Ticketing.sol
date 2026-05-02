@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract Ticketing is AccessControl, ReentrancyGuard {
+contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
 
     bytes32 public constant ADMIN_ROLE     = keccak256("ADMIN_ROLE");
     bytes32 public constant ORGANIZER_ROLE = keccak256("ORGANIZER_ROLE");
@@ -20,12 +22,11 @@ contract Ticketing is AccessControl, ReentrancyGuard {
         uint    startTime;
         address organizer;
         bool    cancelled;
-        string MetaURL; // optional URL for event metadata (e.g. IPFS link)
+        string MetaURL; // (IPFS link)
     }
 
     struct Ticket {
         uint    eventId;
-        address owner;
         bool    used;
         uint    resalePrice; // 0 = not listed
     }
@@ -45,7 +46,9 @@ contract Ticketing is AccessControl, ReentrancyGuard {
     event FundsWithdrawn(address indexed to, uint amount);
     event RefundIssued  (address indexed to, uint amount);
 
-    constructor(address initialOwner) {
+    constructor(address initialOwner) 
+        ERC721("Ticketing NFT", "TICKET")
+    {
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
         _grantRole(ADMIN_ROLE,         initialOwner);
         _grantRole(ORGANIZER_ROLE,     initialOwner);
@@ -96,16 +99,21 @@ contract Ticketing is AccessControl, ReentrancyGuard {
         require(msg.value == e.price,          "Wrong price");
         require(e.sold < e.totalTickets,       "Sold out");
 
-        tickets[nextTicketId] = Ticket(_eventId, msg.sender, false, 0);
+        uint ticketId = nextTicketId;
+        tickets[ticketId] = Ticket(_eventId, false, 0);
+        
+        // Mint the NFT to the buyer
+        _mint(msg.sender, ticketId);
+        
         withdrawableFunds[e.organizer] += e.price;
-        emit TicketPurchased(nextTicketId, _eventId, msg.sender);
+        emit TicketPurchased(ticketId, _eventId, msg.sender);
         e.sold++;
         nextTicketId++;
     }
 
     function claimRefund(uint _ticketId) public nonReentrant {
         Ticket storage t = tickets[_ticketId];
-        require(t.owner == msg.sender, "Not owner");
+        require(ownerOf(_ticketId) == msg.sender, "Not owner");
         require(!t.used,               "Ticket already used");
 
         Event storage e = events[t.eventId];
@@ -114,6 +122,9 @@ contract Ticketing is AccessControl, ReentrancyGuard {
         uint refund = e.price;
         t.used = true;
         if (withdrawableFunds[e.organizer] >= refund) withdrawableFunds[e.organizer] -= refund;
+
+        // Burn the ticket NFT
+        _burn(_ticketId);
 
         (bool ok,) = payable(msg.sender).call{value: refund}("");
         require(ok, "Refund failed");
@@ -124,7 +135,7 @@ contract Ticketing is AccessControl, ReentrancyGuard {
 
     function useTicket(uint _ticketId) public {
         Ticket storage t = tickets[_ticketId];
-        require(t.owner == msg.sender,       "Not owner");
+        require(ownerOf(_ticketId) == msg.sender,       "Not owner");
         require(!t.used,                     "Already used");
         require(!events[t.eventId].cancelled,"Event cancelled");
         t.used = true;
@@ -143,11 +154,14 @@ contract Ticketing is AccessControl, ReentrancyGuard {
 
     function transferTicket(uint _ticketId, address _to) public {
         Ticket storage t = tickets[_ticketId];
-        require(t.owner == msg.sender, "Not owner");
+        require(ownerOf(_ticketId) == msg.sender, "Not owner");
         require(!t.used,               "Already used");
         require(_to != address(0),     "Invalid recipient");
-        t.owner = _to;
+        
         t.resalePrice = 0; // delist if transferred
+        
+        // Use ERC721's transferFrom to update ownership
+        _transfer(msg.sender, _to, _ticketId);
         emit TicketTransferred(_ticketId, msg.sender, _to);
     }
 
@@ -156,7 +170,7 @@ contract Ticketing is AccessControl, ReentrancyGuard {
     function listForResale(uint _ticketId, uint _price) public {
         Ticket storage t = tickets[_ticketId];
         Event storage e  = events[t.eventId];
-        require(t.owner == msg.sender,         "Not owner");
+        require(ownerOf(_ticketId) == msg.sender,         "Not owner");
         require(!t.used,                       "Already used");
         require(!e.cancelled,                  "Event cancelled");
         require(block.timestamp < e.startTime, "Event already started");
@@ -166,7 +180,7 @@ contract Ticketing is AccessControl, ReentrancyGuard {
     }
 
     function delistResale(uint _ticketId) public {
-        require(tickets[_ticketId].owner == msg.sender, "Not owner");
+        require(ownerOf(_ticketId) == msg.sender, "Not owner");
         tickets[_ticketId].resalePrice = 0;
     }
 
@@ -179,12 +193,15 @@ contract Ticketing is AccessControl, ReentrancyGuard {
         require(!e.cancelled && block.timestamp < e.startTime, "Unavailable");
         require(msg.value == t.resalePrice, "Wrong price");
 
-        address seller = t.owner;
+        address seller = ownerOf(_ticketId);
         require(seller != msg.sender, "Cannot buy own ticket");
 
         uint fee = (msg.value * 2) / 100;
-        t.owner       = msg.sender;
         t.resalePrice = 0;
+        
+        // Transfer NFT from seller to buyer
+        _transfer(seller, msg.sender, _ticketId);
+        
         withdrawableFunds[seller]       += msg.value - fee;
         withdrawableFunds[e.organizer]  += fee; // fee goes back to organizer
         emit ResaleSold(_ticketId, seller, msg.sender, msg.value);
@@ -205,5 +222,29 @@ contract Ticketing is AccessControl, ReentrancyGuard {
 
     function remainingTickets(uint _eventId) public view returns (uint) {
         return events[_eventId].totalTickets - events[_eventId].sold;
+    }
+
+    // ── Required ERC721 overrides ─────────────────────────────────────────────
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721URIStorage, AccessControl)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

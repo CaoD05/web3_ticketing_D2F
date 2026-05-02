@@ -27,6 +27,8 @@ model Event {
   EventID         Int        @id @default(autoincrement()) @map("EventID")
   EventName       String     @map("EventName") @db.VarChar(200)
   MetaURL         String?    @map("MetaURL")
+  ImageURL        String?    @map("imageurl")
+  Price           Decimal?   @map("price") @db.Decimal(78, 0)
   EventDate       DateTime?  @map("EventDate")
   Location        String?    @map("Location") @db.VarChar(200)
   ContractAddress String?    @map("ContractAddress") @db.VarChar(42)

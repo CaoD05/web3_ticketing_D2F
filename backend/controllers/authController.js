@@ -5,7 +5,9 @@ const prisma = require("../utils/prismaClient");
 const { isAddress } = require("ethers");
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const GOOGLE_CLIENT_IDS = (process.env.GOOGLE_CLIENT_ID || "")
+const rawGoogleClientIds =
+  process.env.GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_IDS = rawGoogleClientIds
   .split(",")
   .map((clientId) => clientId.trim())
   .filter(Boolean);
