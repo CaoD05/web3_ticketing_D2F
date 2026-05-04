@@ -3,13 +3,21 @@ const router = express.Router();
 const ticketController = require("../controllers/ticketController");
 const { verifyToken, requireRole } = require("../middleware/authMiddleware");
 
-router.post("/tickets", ticketController.createTicket);
+// Public
 router.get("/tickets", ticketController.getTickets);
 router.get("/my-tickets", ticketController.getMyTickets);
-// Chỉ admin hoặc organizer mới được soát vé
+router.get("/tickets/resale", ticketController.getResaleTickets);
+
+// Protected — cần đăng nhập
+router.post("/tickets", ticketController.createTicket);
+router.post("/tickets/transfer", verifyToken, ticketController.transferTicket);
+router.post("/tickets/list-resale", verifyToken, ticketController.listForResale);
+router.post("/tickets/buy-resale", verifyToken, ticketController.buyResale);
+
+// Admin/Organizer — soát vé
 router.post("/checkin", verifyToken, requireRole("admin", "organizer"), ticketController.checkin);
 
-// Đặt route có param /:tokenId CUỐI CÙNG để tránh xung đột
+// Public — metadata (param route ĐẶT CUỐI)
 router.get("/metadata/:tokenId", ticketController.getTicketMetadata);
 
 module.exports = router;

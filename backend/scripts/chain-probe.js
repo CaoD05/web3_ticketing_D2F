@@ -1,6 +1,6 @@
 require("dotenv").config();
 const { ethers } = require("ethers");
-const abi = require("../abis/TicketContract.json").abi;
+const abi = require("../abis/TicketContract.json");
 
 async function main() {
   const rpc = process.env.RPC_URL;

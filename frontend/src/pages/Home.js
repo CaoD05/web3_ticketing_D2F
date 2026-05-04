@@ -25,7 +25,7 @@ export default function Home() {
 
     useEffect(() => {
         axios.get("http://localhost:5000/api/events")
-            .then(res => setEvents(res.data))
+            .then(res => setEvents(res.data.data || []))
             .catch(() => setEvents([]))
             .finally(() => setLoading(false));
     }, []);

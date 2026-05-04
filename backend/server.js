@@ -10,6 +10,10 @@ const authRoutes = require("./routes/authRoutes");
 const eventsRoutes = require("./routes/eventsRoutes");
 const usersRoutes = require("./routes/usersRoutes");
 const ticketRoutes = require("./routes/ticketRoutes");
+const ticketTypeRoutes = require("./routes/ticketTypeRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -40,6 +44,10 @@ app.use("/api", authRoutes);
 app.use("/api", eventsRoutes);
 app.use("/api", usersRoutes);
 app.use("/api", ticketRoutes);
+app.use("/api", ticketTypeRoutes);
+app.use("/api", orderRoutes);
+app.use("/api", dashboardRoutes);
+app.use("/api", uploadRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/health", async (_req, res) => {

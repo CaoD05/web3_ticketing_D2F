@@ -1,11 +1,78 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const { login: authLogin } = useAuth();
+    const navigate = useNavigate();
+    const googleBtnRef = useRef(null);
+
+    const handleGoogleResponse = useCallback(async (response) => {
+        try {
+            setIsLoading(true);
+            const res = await axios.post("http://localhost:5000/api/auth/google", {
+                idToken: response.credential,
+            });
+
+            if (res.data.ok && res.data.token && res.data.user) {
+                authLogin(res.data.token, res.data.user);
+                alert(res.data.isNewUser
+                    ? "Đăng ký bằng Google thành công! Chào mừng bạn."
+                    : "Tài khoản đã tồn tại. Đăng nhập thành công!"
+                );
+                navigate("/");
+            } else {
+                alert("Đăng ký Google không thành công");
+            }
+        } catch (err) {
+            alert("Đăng ký Google thất bại: " + (err.response?.data?.message || err.message));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [authLogin, navigate]);
+
+    useEffect(() => {
+        const initGoogle = () => {
+            if (window.google && window.google.accounts && GOOGLE_CLIENT_ID) {
+                window.google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleGoogleResponse,
+                });
+
+                if (googleBtnRef.current) {
+                    window.google.accounts.id.renderButton(
+                        googleBtnRef.current,
+                        {
+                            theme: "outline",
+                            size: "large",
+                            width: "288",
+                            text: "signup_with",
+                            shape: "rectangular",
+                        }
+                    );
+                }
+            }
+        };
+
+        if (window.google && window.google.accounts) {
+            initGoogle();
+        } else {
+            const interval = setInterval(() => {
+                if (window.google && window.google.accounts) {
+                    clearInterval(interval);
+                    initGoogle();
+                }
+            }, 200);
+            return () => clearInterval(interval);
+        }
+    }, [handleGoogleResponse]);
 
     const register = () => {
         if (password !== confirmPassword) {
@@ -13,14 +80,16 @@ export default function Register() {
             return;
         }
 
+        setIsLoading(true);
         axios.post("http://localhost:5000/api/auth/register", {
-            email, password, role: "user"
+            Email: email, Password: password
         }).then(() => {
             alert("Registration successful! Please login.");
-            // Redirect to login after successful registration
             window.location.href = "/auth/login";
         }).catch(err => {
             alert("Registration failed: " + (err.response?.data?.message || "Unknown error"));
+        }).finally(() => {
+            setIsLoading(false);
         });
     };
 
@@ -88,17 +157,14 @@ export default function Register() {
                                     <div className="mb-3">
                                         <button
                                             type="submit"
-                                            className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 px-2 py-1.5 rounded-md"
+                                            disabled={isLoading}
+                                            className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 disabled:bg-gray-400 px-2 py-1.5 rounded-md"
                                         >
-                                            Sign up
+                                            {isLoading ? 'Đang xử lý...' : 'Sign up'}
                                         </button>
-                                        <button
-                                            type="button"
-                                            className="flex flex-wrap justify-center w-full border border-gray-300 hover:border-gray-500 px-2 py-1.5 rounded-md"
-                                        >
-                                            <img className="w-5 mr-2" src="https://lh3.googleusercontent.com/COxitqgJr1sJnIDe8-jiKhxDx1FrYbtRHKJ9z_hELisAlapwE9LUPh6fcXIfb5vwpbMl4xl9H9TRFPc5NOO8Sb3VSgIBrfRYvW6cUA" alt="Google" />
-                                            Sign up with Google
-                                        </button>
+
+                                        {/* Google Sign-Up Button */}
+                                        <div ref={googleBtnRef} className="flex justify-center w-full"></div>
                                     </div>
                                 </form>
 
