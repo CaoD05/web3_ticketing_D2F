@@ -7,7 +7,7 @@ export default function EventDetail() {
     const [event, setEvent] = useState(null);
 
     useEffect(() => {
-        axios.get(`https://localhost:5001/api/events/${id}`)
+        axios.get(`http://localhost:5000/api/events/${id}`)
             .then(res => setEvent(res.data));
     }, []);
 

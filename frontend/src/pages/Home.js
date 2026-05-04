@@ -24,7 +24,7 @@ export default function Home() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        axios.get("https://localhost:5001/api/events")
+        axios.get("http://localhost:5000/api/events")
             .then(res => setEvents(res.data))
             .catch(() => setEvents([]))
             .finally(() => setLoading(false));

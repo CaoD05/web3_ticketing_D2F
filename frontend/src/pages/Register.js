@@ -13,7 +13,7 @@ export default function Register() {
             return;
         }
 
-        axios.post("https://localhost:5001/api/auth/register", {
+        axios.post("http://localhost:5000/api/auth/register", {
             email, password, role: "user"
         }).then(() => {
             alert("Registration successful! Please login.");

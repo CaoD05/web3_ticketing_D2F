@@ -8,7 +8,7 @@ export default function Login() {
     const [remember, setRemember] = useState(false);
 
     const login = () => {
-        axios.post("https://localhost:5001/api/auth/login", {
+        axios.post("http://localhost:5000/api/auth/login", {
             email, password
         }).then(res => {
             localStorage.setItem("token", res.data.token);
