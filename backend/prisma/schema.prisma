@@ -14,6 +14,7 @@ model User {
   PasswordHash  String?  @map("PasswordHash") @db.VarChar(255)
   GoogleSub     String?  @unique @map("GoogleSub") @db.VarChar(128)
   WalletAddress String?  @unique @map("WalletAddress") @db.VarChar(42)
+  Nonce         String?  @map("Nonce") @db.VarChar(100)
   Role          String?  @default("user") @map("Role") @db.VarChar(20)
   CreatedAt     DateTime? @default(now()) @map("CreatedAt")
 
@@ -27,13 +28,15 @@ model Event {
   EventID         Int        @id @default(autoincrement()) @map("EventID")
   EventName       String     @map("EventName") @db.VarChar(200)
   MetaURL         String?    @map("MetaURL")
-  ImageURL        String?    @map("imageurl")
+  BannerURL       String?    @map("bannerurl")
+  DetailURL       String?    @map("detailurl")
   Price           Decimal?   @map("price") @db.Decimal(78, 0)
   EventDate       DateTime?  @map("EventDate")
   Location        String?    @map("Location") @db.VarChar(200)
   ContractAddress String?    @map("ContractAddress") @db.VarChar(42)
   TotalTickets    Int        @map("TotalTickets")
   TicketsSold     Int?       @default(0) @map("TicketsSold")
+  EventType       String?    @map("EventType") @db.VarChar(50)
   CreatedBy       Int?       @map("CreatedBy")
   CreatedAt       DateTime?  @default(now()) @map("CreatedAt")
   IsCancelled     Boolean    @default(false) @map("IsCancelled")
@@ -54,7 +57,7 @@ model Order {
   TxHash      String?   @map("TxHash") @db.VarChar(66)
 
   User    User?    @relation(fields: [UserID], references: [UserID])
-  Tickets Ticket[]
+  Tickets Ticket[] @relation("OrderToTicket")
 
   @@map("Orders")
 }
@@ -96,7 +99,7 @@ model Ticket {
   IsUsed           Boolean? @default(false) @map("IsUsed")
 
   TicketType TicketType? @relation(fields: [TicketTypeID], references: [TicketTypeID])
-  Order      Order?      @relation(fields: [OrderID], references: [OrderID])
+  Order      Order?      @relation("OrderToTicket", fields: [OrderID], references: [OrderID])
   Seat       Seat?       @relation(fields: [SeatID], references: [SeatID])
   CheckIn    CheckIn?
 

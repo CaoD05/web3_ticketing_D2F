@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ethers } from "ethers";
 import api, { clearAuthSession, getAuthSession, updateAuthUser } from "../lib/api";
 
 export default function WalletConnectPrompt() {
@@ -25,6 +26,7 @@ export default function WalletConnectPrompt() {
     setConnecting(true);
 
     try {
+      // 1. Request accounts
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       const walletAddress = accounts?.[0];
 
@@ -32,12 +34,29 @@ export default function WalletConnectPrompt() {
         throw new Error("No wallet address returned by MetaMask.");
       }
 
-      const response = await api.post("/auth/connect-wallet", { walletAddress });
-      const updatedUser = response.data.user;
+      // 2. Get nonce from backend
+      const nonceRes = await api.get("/auth/nonce");
+      const nonce = nonceRes.data.nonce;
 
+      // 3. Sign the nonce
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signature = await signer.signMessage(nonce);
+
+      // 4. Send address + signature to backend
+      const response = await api.post("/auth/connect-wallet", { 
+        walletAddress,
+        signature 
+      });
+      
+      const updatedUser = response.data.user;
       updateAuthUser(updatedUser);
       setSession({ ...session, user: updatedUser });
+      
+      // Reload to ensure all components are aware of the new wallet
+      window.location.reload();
     } catch (requestError) {
+      console.error("Connection error:", requestError);
       setError(requestError.response?.data?.message || requestError.message || "Failed to connect MetaMask.");
     } finally {
       setConnecting(false);

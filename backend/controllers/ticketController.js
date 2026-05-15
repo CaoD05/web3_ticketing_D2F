@@ -1,4 +1,5 @@
 const prisma = require("../utils/prismaClient");
+const { getSignerContract } = require("../services/web3");
 
 async function createTicket(req, res) {
   try {
@@ -81,6 +82,21 @@ async function checkin(req, res) {
       });
     }
 
+    // 1. Verify on Blockchain first
+    try {
+      const contract = getSignerContract();
+      const tx = await contract.verifyTicket(tokenId);
+      await tx.wait();
+      console.log(`[Check-in] Blockchain verification successful. Tx: ${tx.hash}`);
+    } catch (bcError) {
+      console.error("[Check-in] Blockchain verification failed:", bcError.message);
+      return res.status(400).json({
+        ok: false,
+        message: "Xác minh trên Blockchain thất bại: " + (bcError.reason || bcError.message),
+      });
+    }
+
+    // 2. Update Database
     // Thực hiện prisma.$transaction để đảm bảo data consistency cho Checkin
     const updatedTicket = await prisma.$transaction(async (tx) => {
       const ticket = await tx.ticket.findFirst({
@@ -119,11 +135,16 @@ async function getMyTickets(req, res) {
     const { wallet } = req.query;
 
     if (!wallet) {
-      return res.status(400).json({ ok: false, message: "Vui lòng cung cấp địa chỉ ví" });
+      return res.status(200).json({ ok: true, data: [] });
     }
 
     const tickets = await prisma.ticket.findMany({
-      where: { OwnerWallet: wallet },
+      where: { 
+        OwnerWallet: {
+          equals: wallet,
+          mode: 'insensitive'
+        }
+      },
       orderBy: { TicketID: 'desc' },
       include: {
         TicketType: {

@@ -11,12 +11,7 @@ const ALLOWED_MIME_TYPES = [
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 /**
- * Multer middleware — nhận file ảnh từ frontend
- *
- * - Lưu file trong memory (buffer) — không ghi vào ổ cứng
- * - Giới hạn 5MB
- * - Chỉ chấp nhận: jpeg, png, webp, gif
- * - Field name: "image"
+ * Base multer configuration
  */
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -37,36 +32,41 @@ const upload = multer({
   },
 });
 
-// Middleware cho single file upload với field name "image"
-const uploadSingle = upload.single("image");
-
 /**
- * Wrapper để bắt lỗi multer và trả JSON thay vì crash
+ * Error handling wrapper for multer
  */
-function multerMiddleware(req, res, next) {
-  uploadSingle(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === "LIMIT_FILE_SIZE") {
+function handleMulterError(multerAction) {
+  return (req, res, next) => {
+    multerAction(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({
+            ok: false,
+            message: `File quá lớn. Giới hạn: ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+          });
+        }
         return res.status(400).json({
           ok: false,
-          message: `File quá lớn. Giới hạn: ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+          message: `Upload error: ${err.message}`,
         });
       }
-      return res.status(400).json({
-        ok: false,
-        message: `Upload error: ${err.message}`,
-      });
-    }
 
-    if (err) {
-      return res.status(400).json({
-        ok: false,
-        message: err.message,
-      });
-    }
+      if (err) {
+        return res.status(400).json({
+          ok: false,
+          message: err.message,
+        });
+      }
 
-    next();
-  });
+      next();
+    });
+  };
 }
+
+// Export middleware functions
+const multerMiddleware = handleMulterError(upload.single("image"));
+multerMiddleware.single = (fieldName) => handleMulterError(upload.single(fieldName));
+multerMiddleware.fields = (fields) => handleMulterError(upload.fields(fields));
+multerMiddleware.array = (fieldName, maxCount) => handleMulterError(upload.array(fieldName, maxCount));
 
 module.exports = multerMiddleware;

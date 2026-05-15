@@ -1,43 +1,43 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import api, { clearAuthSession, getAuthSession, setAuthSession } from '../lib/api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => getAuthSession()?.user || null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if token exists and validate it
-        const token = localStorage.getItem('token');
-        if (token) {
-            // Try to get user info from /api/auth/me endpoint
-            fetch('http://localhost:5000/api/auth/me', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok && data.user) {
-                    setUser(data.user);
+        const session = getAuthSession();
+        if (!session?.token) {
+            setLoading(false);
+            return;
+        }
+
+        api.get('/auth/me')
+            .then((response) => {
+                if (response.data?.ok && response.data?.user) {
+                    setUser(response.data.user);
+                    setAuthSession(session.token, response.data.user, session.remember);
                 } else {
-                    localStorage.removeItem('token');
+                    clearAuthSession();
+                    setUser(null);
                 }
             })
             .catch(() => {
-                localStorage.removeItem('token');
+                clearAuthSession();
+                setUser(null);
             })
             .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
     }, []);
 
-    const login = (token, userData) => {
-        localStorage.setItem('token', token);
+    const login = (token, userData, remember = false) => {
+        setAuthSession(token, userData, remember);
         setUser(userData);
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
+        clearAuthSession();
         setUser(null);
     };
 

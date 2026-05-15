@@ -25,8 +25,11 @@ export default function Home() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        axios.get("http://localhost:5000/api/events")
-            .then(res => setEvents(res.data.data || []))
+        api.get("/events")
+            .then(res => {
+                const normalized = (res.data.data || []).map(normalizeEvent);
+                setEvents(normalized);
+            })
             .catch(() => setEvents([]))
             .finally(() => setLoading(false));
     }, []);
@@ -56,8 +59,8 @@ export default function Home() {
                                 key={category}
                                 onClick={() => setSelectedCategory(category)}
                                 className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition ${selectedCategory === category
-                                        ? "border-black bg-black text-white"
-                                        : "border-gray-200 bg-white text-gray-700 hover:border-black"
+                                    ? "border-black bg-black text-white"
+                                    : "border-gray-200 bg-white text-gray-700 hover:border-black"
                                     }`}
                             >
                                 {category}
@@ -66,7 +69,7 @@ export default function Home() {
                     </div>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {loading
                         ? Array.from({ length: 4 }).map((_, idx) => (
                             <EventCard key={idx} loading />

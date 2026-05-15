@@ -5,7 +5,7 @@ const { verifyToken, requireRole } = require("../middleware/authMiddleware");
 
 // Public
 router.get("/tickets", ticketController.getTickets);
-router.get("/my-tickets", ticketController.getMyTickets);
+router.get("/tickets/my-tickets", ticketController.getMyTickets);
 router.get("/tickets/resale", ticketController.getResaleTickets);
 
 // Protected — cần đăng nhập

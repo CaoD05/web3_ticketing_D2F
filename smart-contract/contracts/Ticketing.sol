@@ -13,6 +13,7 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
 
     uint public nextEventId;
     uint public nextTicketId;
+    uint public constant MAX_TICKETS_PER_BUYER = 5;
 
     struct Event {
         string  name;
@@ -34,8 +35,9 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
     mapping(uint => Event)   public events;
     mapping(uint => Ticket)  public tickets;
     mapping(address => uint) public withdrawableFunds;
+    mapping(uint => mapping(address => uint)) public ticketsBought;
 
-    event EventCreated  (uint indexed eventId, string name, uint price, uint totalTickets, address organizer);
+    event EventCreated  (uint indexed eventId, string name, uint price, uint totalTickets, address organizer, string metaURL);
     event EventCancelled(uint indexed eventId);
     event TicketPurchased(uint indexed ticketId, uint indexed eventId, address indexed buyer);
     event TicketUsed    (uint indexed ticketId);
@@ -68,7 +70,7 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
 
     // ── Events ───────────────────────────────────────────────────────────────
 
-    function createEvent(string memory _name, uint _price, uint _totalTickets, uint _startTime)
+    function createEvent(string memory _name, uint _price, uint _totalTickets, uint _startTime, string memory _metaURL)
         public onlyRole(ORGANIZER_ROLE)
     {
         require(bytes(_name).length > 0, "Event name cannot be empty");
@@ -76,8 +78,8 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
         require(_totalTickets > 0,       "Total tickets must be greater than 0");
         require(_startTime > block.timestamp, "Start must be in future");
 
-        events[nextEventId] = Event(_name, _price, _totalTickets, 0, _startTime, msg.sender, false, "");
-        emit EventCreated(nextEventId, _name, _price, _totalTickets, msg.sender);
+        events[nextEventId] = Event(_name, _price, _totalTickets, 0, _startTime, msg.sender, false, _metaURL);
+        emit EventCreated(nextEventId, _name, _price, _totalTickets, msg.sender, _metaURL);
         nextEventId++;
     }
 
@@ -98,14 +100,17 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
         require(block.timestamp < e.startTime, "Event already started");
         require(msg.value == e.price,          "Wrong price");
         require(e.sold < e.totalTickets,       "Sold out");
+        require(ticketsBought[_eventId][msg.sender] < MAX_TICKETS_PER_BUYER, "Limit reached");
 
         uint ticketId = nextTicketId;
         tickets[ticketId] = Ticket(_eventId, false, 0);
         
-        // Mint the NFT to the buyer
+        // Mint the NFT to the buyer and set metadata URI
         _mint(msg.sender, ticketId);
+        _setTokenURI(ticketId, e.MetaURL);
         
         withdrawableFunds[e.organizer] += e.price;
+        ticketsBought[_eventId][msg.sender]++;
         emit TicketPurchased(ticketId, _eventId, msg.sender);
         e.sold++;
         nextTicketId++;
@@ -137,7 +142,11 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
         Ticket storage t = tickets[_ticketId];
         require(ownerOf(_ticketId) == msg.sender,       "Not owner");
         require(!t.used,                     "Already used");
-        require(!events[t.eventId].cancelled,"Event cancelled");
+        
+        Event storage e = events[t.eventId];
+        require(!e.cancelled,"Event cancelled");
+        require(block.timestamp >= e.startTime - 24 hours, "Too early to check-in");
+        
         t.used = true;
         emit TicketUsed(_ticketId);
     }
@@ -145,7 +154,11 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
     function verifyTicket(uint _ticketId) public onlyRole(ADMIN_ROLE) {
         Ticket storage t = tickets[_ticketId];
         require(!t.used,                     "Ticket already used");
-        require(!events[t.eventId].cancelled,"Event cancelled");
+        
+        Event storage e = events[t.eventId];
+        require(!e.cancelled,"Event cancelled");
+        require(block.timestamp >= e.startTime - 24 hours, "Too early to verify");
+
         t.used = true;
         emit TicketVerified(_ticketId);
     }

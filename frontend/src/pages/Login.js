@@ -1,30 +1,28 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export default function Login() {
     const navigate = useNavigate();
-    const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { login: authLogin } = useAuth();
-    const navigate = useNavigate();
     const googleBtnRef = useRef(null);
 
     const handleGoogleResponse = useCallback(async (response) => {
         try {
             setIsLoading(true);
-            const res = await axios.post("http://localhost:5000/api/auth/google", {
-                idToken: response.credential,
+            const res = await api.post("/auth/google", {
+                credential: response.credential,
             });
 
             if (res.data.ok && res.data.token && res.data.user) {
-                authLogin(res.data.token, res.data.user);
+                authLogin(res.data.token, res.data.user, remember);
                 alert(res.data.isNewUser
                     ? "Đăng ký bằng Google thành công! Chào mừng bạn."
                     : "Đăng nhập bằng Google thành công!"
@@ -38,7 +36,7 @@ export default function Login() {
         } finally {
             setIsLoading(false);
         }
-    }, [authLogin, navigate]);
+    }, [authLogin, navigate, remember]);
 
     useEffect(() => {
         // Đợi Google Identity Services SDK load xong
@@ -82,12 +80,12 @@ export default function Login() {
     const login = async () => {
         try {
             setIsLoading(true);
-            const res = await axios.post("http://localhost:5000/api/auth/login", {
+            const res = await api.post("/auth/login", {
                 email, password
             });
             
             if (res.data.ok && res.data.token && res.data.user) {
-                authLogin(res.data.token, res.data.user);
+                authLogin(res.data.token, res.data.user, remember);
                 alert("Đăng nhập thành công!");
                 navigate("/");
             } else {
@@ -103,12 +101,9 @@ export default function Login() {
     return (
         <div className="min-h-screen w-full bg-[#111111] text-white">
             <div className="flex items-center justify-between px-10 py-4">
-                <div className="flex items-center gap-2">
-                    <img src="/logoUTC.png" alt="UTC Logo" className="w-8 h-8" />
+                <Link to="/" className="flex items-center gap-2 group">
+                    <img src="/logoUTC.png" alt="UTC Logo" className="w-8 h-8 group-hover:scale-110 transition" />
                     <span className="text-3xl font-black text-yellow-400">U-Ticket</span>
-                </div>
-                <Link to="/" className="rounded-lg bg-yellow-400/90 px-3 py-1 text-sm font-bold text-black transition hover:bg-yellow-300">
-                    Home
                 </Link>
             </div>
 
@@ -163,6 +158,7 @@ export default function Login() {
                             <div className="mb-3">
                                 <button
                                     type="submit"
+                                    onClick={login}
                                     disabled={isLoading}
                                     className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 disabled:bg-gray-400 px-2 py-1.5 rounded-md"
                                 >

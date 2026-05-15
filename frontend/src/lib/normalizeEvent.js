@@ -58,7 +58,9 @@ export default function normalizeEvent(event) {
     null;
 
   const normalizedPriceEth = event.priceEth ?? toEthDisplay(event.PriceEth);
-  const normalizedImageFromDb = cidToGatewayUrl(event.ImageURL ?? event.imageURL ?? null);
+
+  const bannerFromDb = cidToGatewayUrl(event.BannerURL ?? event.bannerurl ?? event.ImageURL ?? event.imageurl ?? null);
+  const detailFromDb = cidToGatewayUrl(event.DetailURL ?? event.detailurl ?? event.ImageURL ?? event.imageurl ?? null);
 
   return {
     ...event,
@@ -67,8 +69,10 @@ export default function normalizeEvent(event) {
     description: event.description ?? event.Description ?? event.MetaURL ?? "",
     metaURL: event.metaURL ?? event.MetaURL ?? "",
     date: event.date ?? formatDate(event.EventDate),
-    image: event.image ?? normalizedImageFromDb ?? FALLBACK_EVENT_IMAGE,
-    category: event.category ?? event.type ?? "Other",
+    bannerImage: event.bannerImage ?? bannerFromDb ?? FALLBACK_EVENT_IMAGE,
+    detailImage: event.detailImage ?? detailFromDb ?? bannerFromDb ?? FALLBACK_EVENT_IMAGE,
+    location: event.location ?? event.Location ?? "",
+    category: event.category ?? event.type ?? event.EventType ?? "Other",
     price: event.price ?? normalizedPriceEth,
     priceWei: normalizedPriceWei,
     priceEth: normalizedPriceEth,

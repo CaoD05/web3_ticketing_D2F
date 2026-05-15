@@ -243,10 +243,61 @@ async function deleteUser(req, res) {
   }
 }
 
+// ─── PUT /api/users/me ───────────────────────────────────────────────────────
+// Cập nhật thông tin cá nhân (User only)
+async function updateMe(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { FullName, Email } = req.body;
+
+    if (!FullName && !Email) {
+      return res.status(400).json({
+        ok: false,
+        message: "At least one field (FullName or Email) is required for update",
+      });
+    }
+
+    const data = {};
+    if (FullName) data.FullName = FullName;
+    if (Email) data.Email = Email;
+
+    const updated = await prisma.user.update({
+      where: { UserID: userId },
+      data,
+      select: {
+        UserID: true,
+        FullName: true,
+        Email: true,
+        WalletAddress: true,
+        Role: true,
+      },
+    });
+
+    return res.status(200).json({
+      ok: true,
+      message: "Profile updated successfully",
+      data: updated,
+    });
+  } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        ok: false,
+        message: "Email already exists",
+      });
+    }
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to update profile",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   getAllUsers,
   getUserById,
   createUser,
   updateUserRole,
   deleteUser,
+  updateMe,
 };

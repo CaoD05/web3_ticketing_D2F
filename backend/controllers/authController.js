@@ -1,11 +1,8 @@
 require("dotenv").config();
 const crypto = require("crypto");
-const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { isAddress } = require("ethers");
-const { OAuth2Client } = require("google-auth-library");
+const { isAddress, verifyMessage } = require("ethers");
 const prisma = require("../utils/prismaClient");
-const { isAddress } = require("ethers");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const rawGoogleClientIds =
@@ -136,7 +133,6 @@ async function login(req, res) {
       message: "Đăng nhập thành công",
       token,
       user: toPublicUser(user),
-      user: toPublicUser(user),
     });
   } catch (error) {
     return res.status(500).json({
@@ -235,7 +231,7 @@ async function register(req, res) {
 
 async function googleAuth(req, res) {
   try {
-    const { credential } = req.body;
+    const credential = req.body?.credential || req.body?.idToken;
 
     if (!credential) {
       return res.status(400).json({
@@ -374,12 +370,12 @@ async function googleAuth(req, res) {
 
 async function connectWallet(req, res) {
   try {
-    const { walletAddress } = req.body;
+    const { walletAddress, signature } = req.body;
 
-    if (!walletAddress) {
+    if (!walletAddress || !signature) {
       return res.status(400).json({
         ok: false,
-        message: "WalletAddress là bắt buộc",
+        message: "WalletAddress và Signature là bắt buộc",
       });
     }
 
@@ -396,20 +392,24 @@ async function connectWallet(req, res) {
       where: { UserID: req.user.userId },
       select: {
         UserID: true,
-        FullName: true,
-        Email: true,
-        PasswordHash: true,
-        WalletAddress: true,
-        GoogleSub: true,
-        Role: true,
-        CreatedAt: true,
+        Nonce: true,
       },
     });
 
-    if (!currentUser) {
-      return res.status(404).json({
+    if (!currentUser || !currentUser.Nonce) {
+      return res.status(400).json({
         ok: false,
-        message: "Không tìm thấy người dùng",
+        message: "Vui lòng lấy mã Nonce trước khi thực hiện liên kết",
+      });
+    }
+
+    // Verify signature
+    const recoveredAddress = verifyMessage(currentUser.Nonce, signature);
+    
+    if (normalizeWalletAddress(recoveredAddress) !== normalizedWallet) {
+      return res.status(401).json({
+        ok: false,
+        message: "Chữ ký không hợp lệ. Bạn không sở hữu ví này.",
       });
     }
 
@@ -435,7 +435,10 @@ async function connectWallet(req, res) {
 
     const updatedUser = await prisma.user.update({
       where: { UserID: currentUser.UserID },
-      data: { WalletAddress: normalizedWallet },
+      data: { 
+        WalletAddress: normalizedWallet,
+        Nonce: null // Clear nonce after use
+      },
       select: {
         UserID: true,
         FullName: true,
@@ -458,6 +461,28 @@ async function connectWallet(req, res) {
       ok: false,
       message: "Lỗi liên kết MetaMask",
       error: error.message,
+    });
+  }
+}
+
+async function getNonce(req, res) {
+  try {
+    const nonce = `Welcome to uTicket! Sign this message to link your wallet. Nonce: ${crypto.randomBytes(16).toString("hex")}`;
+    
+    await prisma.user.update({
+      where: { UserID: req.user.userId },
+      data: { Nonce: nonce }
+    });
+
+    return res.status(200).json({
+      ok: true,
+      nonce
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "Lỗi tạo mã Nonce",
+      error: error.message
     });
   }
 }
@@ -498,4 +523,4 @@ async function getMe(req, res) {
   }
 }
 
-module.exports = { login, register, googleAuth, connectWallet, getMe };
+module.exports = { login, register, googleAuth, connectWallet, getNonce, getMe };

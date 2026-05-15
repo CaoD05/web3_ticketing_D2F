@@ -50,9 +50,9 @@ export async function fetchIPFSMetadata(cidOrUrl) {
     } catch (error) {
       console.error("Error fetching IPFS metadata:", error.message);
     }
-    return null;
-
   }
+
+  return null;
 }
 
 /**

@@ -6,13 +6,27 @@ const {
   updateEvent,
   deleteEvent,
   cancelEvent,
+  createEventMetadata,
 } = require("../controllers/eventsController");
 const { verifyToken, requireRole } = require("../middleware/authMiddleware");
+const multerMiddleware = require("../middleware/multerMiddleware");
 
 const router = express.Router();
 
 // Public
 router.get("/events", getAllEvents);
+
+// Admin/Organizer — tạo metadata IPFS (Upload ảnh & JSON)
+router.post(
+  "/events/metadata",
+  verifyToken,
+  requireRole("admin", "organizer"),
+  multerMiddleware.fields([
+    { name: "banner", maxCount: 1 },
+    { name: "detail", maxCount: 1 },
+  ]),
+  createEventMetadata
+);
 
 // Admin/Organizer — tạo sự kiện
 router.post("/events", verifyToken, requireRole("admin", "organizer"), createEvent);

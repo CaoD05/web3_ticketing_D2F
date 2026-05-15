@@ -1,6 +1,7 @@
 const prisma = require("../utils/prismaClient");
 const { ethers } = require("ethers");
 const { getReadOnlyContract } = require("../services/web3");
+const { uploadFileToIPFS, uploadJSONToIPFS } = require("../utils/pinata");
 
 const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs";
 const IPFS_GATEWAY_FALLBACK = "https://ipfs.io/ipfs";
@@ -98,11 +99,12 @@ function normalizeImageCid(value) {
   return trimmed;
 }
 
-async function fetchImageCidFromMeta(metaURL) {
+async function fetchImageCidsFromMeta(metaURL) {
   if (!metaURL) {
-    return null;
+    return { bannerCid: null, detailCid: null };
   }
 
+  // Simple cache for results (could be improved)
   if (metaImageCache.has(metaURL)) {
     return metaImageCache.get(metaURL);
   }
@@ -122,60 +124,65 @@ async function fetchImageCidFromMeta(metaURL) {
       }
 
       const metaJson = await response.json();
-      const imageCid = normalizeImageCid(metaJson?.image);
-      if (imageCid) {
-        metaImageCache.set(metaURL, imageCid);
-        return imageCid;
+      // Assume metaJson might have 'image' for banner and 'image_detail' or similar for detail
+      // If not, we fall back to 'image' for both if only one exists
+      const bannerCid = normalizeImageCid(metaJson?.image || metaJson?.banner_image);
+      const detailCid = normalizeImageCid(metaJson?.image_detail || metaJson?.detail_image || bannerCid);
+
+      if (bannerCid || detailCid) {
+        const result = { bannerCid, detailCid };
+        metaImageCache.set(metaURL, result);
+        return result;
       }
     } catch {
       // Try next gateway candidate.
     }
   }
 
-  metaImageCache.set(metaURL, null);
-  return null;
+  const result = { bannerCid: null, detailCid: null };
+  metaImageCache.set(metaURL, result);
+  return result;
 }
 
-async function attachMetaImageCid(event) {
-  const storedImageCid = normalizeImageCid(event.ImageURL);
-  if (storedImageCid) {
-    return {
-      ...event,
-      ImageURL: storedImageCid,
-    };
+async function hydrateEventImages(event) {
+  const storedBannerCid = normalizeImageCid(event.BannerURL);
+  const storedDetailCid = normalizeImageCid(event.DetailURL);
+
+  if (storedBannerCid && storedDetailCid) {
+    return event;
   }
 
   if (!event.MetaURL) {
     return {
       ...event,
-      ImageURL: null,
+      BannerURL: storedBannerCid || null,
+      DetailURL: storedDetailCid || null,
     };
   }
 
-  const imageCid = await fetchImageCidFromMeta(event.MetaURL);
-  if (!imageCid) {
-    return {
-      ...event,
-      ImageURL: null,
-    };
-  }
+  const { bannerCid, detailCid } = await fetchImageCidsFromMeta(event.MetaURL);
+  
+  const finalBanner = storedBannerCid || bannerCid;
+  const finalDetail = storedDetailCid || detailCid;
 
-  try {
-    await prisma.event.update({
-      where: {
-        EventID: event.EventID,
-      },
-      data: {
-        ImageURL: imageCid,
-      },
-    });
-  } catch {
-    // Non-fatal: still return hydrated response.
+  if (finalBanner !== event.BannerURL || finalDetail !== event.DetailURL) {
+    try {
+      await prisma.event.update({
+        where: { EventID: event.EventID },
+        data: {
+          BannerURL: finalBanner,
+          DetailURL: finalDetail,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to update hydrated images:", err.message);
+    }
   }
 
   return {
     ...event,
-    ImageURL: imageCid,
+    BannerURL: finalBanner,
+    DetailURL: finalDetail,
   };
 }
 
@@ -218,7 +225,7 @@ async function getAllEvents(_req, res) {
         };
 
         const withPrice = await attachOnChainPrice(contract, baseEvent);
-        return attachMetaImageCid(withPrice);
+        return hydrateEventImages(withPrice);
       })
     );
 
@@ -244,20 +251,29 @@ async function createEvent(req, res) {
       Description,
       Price,
       priceWei,
-      ImageURL,
-      imageURL,
+      BannerURL,
+      bannerURL,
+      DetailURL,
+      detailURL,
       EventDate = null,
       Location = null,
+      EventType = null,
       ContractAddress = null,
       TotalTickets, TicketsSold = 0, CreatedBy = null,
-      ImageUrl = null, ExternalLink = null,
+      ExternalLink = null,
     } = req.body;
 
     const resolvedMetaURL = MetaURL ?? metaURL ?? Description ?? null;
     const resolvedPriceWei = toWeiString(priceWei ?? Price);
-    const resolvedImageCid =
-      normalizeImageCid(ImageURL ?? imageURL) ??
-      (await fetchImageCidFromMeta(resolvedMetaURL));
+    
+    let finalBanner = normalizeImageCid(BannerURL ?? bannerURL);
+    let finalDetail = normalizeImageCid(DetailURL ?? detailURL);
+
+    if (!finalBanner || !finalDetail) {
+      const { bannerCid, detailCid } = await fetchImageCidsFromMeta(resolvedMetaURL);
+      if (!finalBanner) finalBanner = bannerCid;
+      if (!finalDetail) finalDetail = detailCid;
+    }
 
     if (!EventName || TotalTickets == null) {
       return res.status(400).json({ ok: false, message: "EventName and TotalTickets are required" });
@@ -283,27 +299,39 @@ async function createEvent(req, res) {
       return res.status(400).json({ ok: false, message: "CreatedBy must be an integer" });
     }
 
-    // ─── Auto-fill ảnh từ ExternalLink nếu ImageUrl trống ────────────────────
-    let finalImageUrl = ImageUrl || null;
-    if (!finalImageUrl && ExternalLink) {
-      console.log(`[eventsController] 🔍 ImageUrl trống, cào ảnh từ: ${ExternalLink}`);
-      finalImageUrl = await scrapeImageFromLink(ExternalLink);
+    // ─── Auto-fill ảnh từ ExternalLink nếu BannerURL trống ────────────────────
+    if (!finalBanner && ExternalLink) {
+      console.log(`[eventsController] 🔍 BannerURL trống, cào ảnh từ: ${ExternalLink}`);
+      const scraped = await scrapeImageFromLink(ExternalLink);
+      if (scraped) finalBanner = normalizeImageCid(scraped);
     }
 
     const createdEvent = await prisma.event.create({
       data: {
         EventName,
         MetaURL: resolvedMetaURL,
-        ImageURL: resolvedImageCid,
+        BannerURL: finalBanner,
+        DetailURL: finalDetail || finalBanner,
         Price: resolvedPriceWei,
         EventDate: parsedEventDate,
         Location,
-        ImageUrl: finalImageUrl,
+        EventType,
         ExternalLink: ExternalLink || null,
         ContractAddress,
         TotalTickets: parsedTotalTickets,
         TicketsSold: parsedTicketsSold,
         CreatedBy: parsedCreatedBy,
+        // Tự động tạo một loại vé mặc định
+        TicketTypes: {
+          create: {
+            TypeName: "Vé tiêu chuẩn",
+            Price: resolvedPriceWei ? Number(ethers.formatEther(resolvedPriceWei)) : 0,
+            Quantity: parsedTotalTickets,
+          }
+        }
+      },
+      include: {
+        TicketTypes: true
       }
     });
 
@@ -335,7 +363,8 @@ async function getEventById(req, res) {
     }
 
     const event = await prisma.event.findUnique({
-      where: { EventID: Number(eventId) }
+      where: { EventID: Number(eventId) },
+      include: { TicketTypes: true }
     });
     
     if (!event) {
@@ -349,11 +378,11 @@ async function getEventById(req, res) {
     };
 
     const enrichedEvent = await attachOnChainPrice(contract, eventWithStatus);
-    const enrichedEventWithImage = await attachMetaImageCid(enrichedEvent);
+    const enrichedEventWithImages = await hydrateEventImages(enrichedEvent);
 
     return res.status(200).json({
       ok: true,
-      data: enrichedEventWithImage,
+      data: enrichedEventWithImages,
     });
   } catch (error) {
     return res.status(500).json({
@@ -382,7 +411,7 @@ async function updateEvent(req, res) {
     const {
       EventName, Description, EventDate, Location,
       ContractAddress, TotalTickets, TicketsSold,
-      ImageUrl, ExternalLink,
+      BannerURL, DetailURL, ExternalLink,
     } = req.body;
 
     // Chỉ cập nhật các field được gửi lên (partial update)
@@ -417,21 +446,18 @@ async function updateEvent(req, res) {
       data.TicketsSold = n;
     }
 
-    // ─── Auto-fill ảnh từ ExternalLink nếu ImageUrl trống ────────────────────
-    if (ImageUrl !== undefined) {
-      data.ImageUrl = ImageUrl;
-    }
+    if (BannerURL !== undefined) data.BannerURL = normalizeImageCid(BannerURL);
+    if (DetailURL !== undefined) data.DetailURL = normalizeImageCid(DetailURL);
 
-    // Nếu ImageUrl không được gửi (hoặc null) nhưng ExternalLink mới được gửi
-    // → tự động cào ảnh
-    const effectiveImageUrl = ImageUrl !== undefined ? ImageUrl : existing.ImageUrl;
+    // ─── Auto-fill ảnh từ ExternalLink nếu BannerURL trống ────────────────────
+    const effectiveBanner = BannerURL !== undefined ? data.BannerURL : existing.BannerURL;
     const effectiveExternalLink = ExternalLink !== undefined ? ExternalLink : existing.ExternalLink;
 
-    if (!effectiveImageUrl && effectiveExternalLink) {
-      console.log(`[eventsController] 🔍 ImageUrl trống, cào ảnh từ: ${effectiveExternalLink}`);
+    if (!effectiveBanner && effectiveExternalLink) {
+      console.log(`[eventsController] 🔍 BannerURL trống, cào ảnh từ: ${effectiveExternalLink}`);
       const scrapedImage = await scrapeImageFromLink(effectiveExternalLink);
       if (scrapedImage) {
-        data.ImageUrl = scrapedImage;
+        data.BannerURL = normalizeImageCid(scrapedImage);
       }
     }
 
@@ -545,6 +571,81 @@ async function cancelEvent(req, res) {
   }
 }
 
+/**
+ * createEventMetadata — Upload image and JSON metadata to IPFS via Pinata
+ * 
+ * Flow:
+ * 1. Upload Banner Image to IPFS -> Get Banner CID
+ * 2. Upload Detail Image to IPFS -> Get Detail CID
+ * 3. Create JSON Metadata with both CIDs -> Get Metadata CID
+ * 4. Return Metadata CID to frontend
+ */
+async function createEventMetadata(req, res) {
+  try {
+    const { name, description, location, date, category } = req.body;
+    const bannerFile = req.files?.banner?.[0];
+    const detailFile = req.files?.detail?.[0];
+
+    if (!bannerFile) {
+      return res.status(400).json({ ok: false, message: "Banner image file is required" });
+    }
+
+    // 1. Upload Banner Image to IPFS
+    console.log(`[eventsController] 📤 Uploading banner image to IPFS: ${bannerFile.originalname}`);
+    const bannerCid = await uploadFileToIPFS(bannerFile.buffer, bannerFile.originalname, bannerFile.mimetype);
+    console.log(`[eventsController] ✅ Banner image uploaded to IPFS: ${bannerCid}`);
+
+    // 2. Upload Detail Image to IPFS (Optional, fallback to banner if missing)
+    let detailCid = bannerCid;
+    if (detailFile) {
+      console.log(`[eventsController] 📤 Uploading detail image to IPFS: ${detailFile.originalname}`);
+      detailCid = await uploadFileToIPFS(detailFile.buffer, detailFile.originalname, detailFile.mimetype);
+      console.log(`[eventsController] ✅ Detail image uploaded to IPFS: ${detailCid}`);
+    }
+
+    // 3. Prepare JSON Metadata (Matching user format + dual image support + Web3 standards)
+    const metadata = {
+      name: name,
+      description: description,
+      image: `ipfs://${bannerCid}`, // Standard URI format
+      banner_image: `ipfs://${bannerCid}`,
+      detail_image: `ipfs://${detailCid}`,
+      location: location,
+      date: date,
+      category: category,
+      attributes: [
+        { trait_type: "Location", value: location },
+        { trait_type: "Date", value: date },
+        { trait_type: "Category", value: category }
+      ]
+    };
+
+    // 4. Upload JSON Metadata to IPFS
+    console.log(`[eventsController] 📤 Uploading JSON metadata to IPFS`);
+    // Pass a name for Pinata dashboard visibility
+    const metadataCid = await uploadJSONToIPFS(metadata, `Event_Metadata_${Date.now()}`);
+    console.log(`[eventsController] ✅ Metadata uploaded to IPFS: ${metadataCid}`);
+
+    return res.status(201).json({
+      ok: true,
+      message: "Metadata created and pinned to IPFS successfully",
+      data: {
+        metadataCid: metadataCid,
+        bannerCid: bannerCid,
+        detailCid: detailCid,
+        metadata: metadata,
+      },
+    });
+  } catch (error) {
+    console.error("[eventsController] ❌ IPFS Metadata creation error:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to create IPFS metadata",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   getAllEvents,
   createEvent,
@@ -552,4 +653,6 @@ module.exports = {
   updateEvent,
   deleteEvent,
   cancelEvent,
+  createEventMetadata,
 };
+

@@ -5,10 +5,14 @@ const {
   createUser,
   updateUserRole,
   deleteUser,
+  updateMe,
 } = require("../controllers/usersController");
 const { verifyToken, requireRole } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
+// User — cập nhật thông tin cá nhân
+router.put("/me", verifyToken, updateMe);
 
 // Admin only — tất cả user management đều cần admin role
 router.get("/users", verifyToken, requireRole("admin"), getAllUsers);

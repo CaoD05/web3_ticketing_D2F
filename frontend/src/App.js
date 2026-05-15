@@ -5,7 +5,8 @@ import Events from "./pages/Events";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import EventDetail from "./pages/EventDetail";
-//import Buy from "./pages/Buy";
+import MyTickets from "./pages/MyTickets";
+import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
@@ -16,9 +17,9 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Auth pages - no navbar/footer */}
-          <Route path="/auth" element={<AuthLayout />}>
-            <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
           </Route>
 
           {/* Main app pages - with navbar/footer */}
@@ -26,6 +27,8 @@ function App() {
             <Route index element={<Home />} />
             <Route path="event/:id" element={<EventDetail />} />
             <Route path="events" element={<Events />} />
+            <Route path="my-tickets" element={<MyTickets />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="admin" element={<Admin />} />
           </Route>
         </Routes>
