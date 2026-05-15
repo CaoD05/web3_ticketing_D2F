@@ -20,31 +20,9 @@ export default function EventDetail() {
 
     // Fetch IPFS metadata if metaURL exists
     useEffect(() => {
-        if (!event?.metaURL) {
-            setIpfsData(null);
-            return;
-        }
-
-        setIpfsLoading(true);
-        setIpfsError(null);
-
-        (async () => {
-            try {
-                const metadata = await fetchIPFSMetadata(event.metaURL);
-                if (metadata) {
-                    const parsed = parseEventMetadata(metadata);
-                    setIpfsData(parsed);
-                } else {
-                    setIpfsError("Không thể tải dữ liệu từ IPFS");
-                }
-            } catch (err) {
-                console.error("IPFS fetch error:", err);
-                setIpfsError("Lỗi khi tải dữ liệu từ IPFS");
-            } finally {
-                setIpfsLoading(false);
-            }
-        })();
-    }, [event?.metaURL]);
+        axios.get(`http://localhost:5000/api/events/${id}`)
+            .then(res => setEvent(res.data.data || res.data));
+    }, [id]);
 
     if (!event) {
         return (
@@ -63,87 +41,29 @@ export default function EventDetail() {
     return (
         <div className="bg-gray-100 min-h-screen p-10">
             <div className="bg-white rounded-2xl shadow p-6 flex gap-6">
+
                 <img
-                    src={displayImage}
-                    alt={displayTitle || "Event image"}
+                    src={event.ImageUrl || event.image || "/logoUTC.png"}
+                    alt={event.EventName || event.title || "Event image"}
                     className="w-1/2 rounded-xl object-cover"
                 />
 
-                <div className="flex-1">
-                    <h1 className="text-3xl font-bold">{displayTitle}</h1>
+                <div>
+                    <h1 className="text-3xl font-bold">{event.EventName || event.title}</h1>
+                    <p className="text-gray-500 mt-2">{event.Description || event.description}</p>
 
-                    {/* IPFS Metadata loading indicator */}
-                    {ipfsLoading && (
-                        <p className="text-sm text-gray-400 mt-2">Đang tải thông tin từ IPFS...</p>
+                    {event.Location && (
+                        <p className="text-gray-600 mt-2">📍 {event.Location}</p>
                     )}
 
-                    {ipfsError && (
-                        <p className="text-sm text-red-500 mt-2">{ipfsError}</p>
-                    )}
-
-                    {/* {ipfsData && !ipfsLoading && (
-                        <p className="text-xs text-green-600 mt-2">✓ Thông tin từ IPFS</p>
-                    )} */}
-
-                    {displayDescription && (
-                        <p className="text-gray-500 mt-4">{displayDescription}</p>
-                    )}
-
-                    {/* Additional IPFS metadata fields */}
-                    {ipfsData?.organizer && (
-                        <p className="text-sm text-gray-600 mt-3">
-                            <strong>Tổ chức:</strong> {ipfsData.organizer}
+                    {event.EventDate && (
+                        <p className="text-gray-600 mt-1">
+                            📅 {new Date(event.EventDate).toLocaleDateString("vi-VN")}
                         </p>
                     )}
-
-                    {ipfsData?.location && (
-                        <p className="text-sm text-gray-600 mt-2">
-                            <strong>Địa điểm:</strong> {ipfsData.location}
-                        </p>
-                    )}
-
-                    {ipfsData?.eventDate && (
-                        <p className="text-sm text-gray-600 mt-2">
-                            <strong>Ngày:</strong> {ipfsData.eventDate}
-                        </p>
-                    )}
-
-                    {ipfsData?.category && (
-                        <p className="text-sm text-gray-600 mt-2">
-                            <strong>Thể loại:</strong> {ipfsData.category}
-                        </p>
-                    )}
-
-                    {ipfsData?.tags && ipfsData.tags.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {ipfsData.tags.map((tag, idx) => (
-                                <span
-                                    key={idx}
-                                    className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded"
-                                >
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-
-                    {ipfsData?.website && (
-                        <p className="mt-3 text-sm">
-                            <a
-                                href={ipfsData.website}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-600 hover:text-blue-700 underline"
-                            >
-                                Trang web sự kiện
-                            </a>
-                        </p>
-                    )}
-
-                    <p className="text-sm text-gray-600 mt-4">{event.date}</p>
 
                     <p className="text-red-500 text-xl mt-4 font-bold">
-                        {displayPriceEth ? `${displayPriceEth} TEST` : "Giá sẽ cập nhật sớm"}
+                        {event.price ? `${event.price} VND` : "Liên hệ"}
                     </p>
 
                     <button className="mt-6 bg-yellow-400 px-6 py-3 rounded-xl font-bold hover:bg-yellow-300">

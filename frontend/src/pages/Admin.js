@@ -6,7 +6,7 @@ export default function Admin() {
     const [price, setPrice] = useState("");
 
     const create = () => {
-        api.post("/events", {
+        axios.post("http://localhost:5000/api/events", {
             title,
             price,
             image: "https://via.placeholder.com/300"

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Events from "./pages/Events";
 import Login from "./pages/Login";
@@ -11,23 +12,25 @@ import AuthLayout from "./layouts/AuthLayout";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Auth pages - no navbar/footer */}
-        <Route path="/auth" element={<AuthLayout />}>
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
-        </Route>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Auth pages - no navbar/footer */}
+          <Route path="/auth" element={<AuthLayout />}>
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<Register />} />
+          </Route>
 
-        {/* Main app pages - with navbar/footer */}
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={<Home />} />
-          <Route path="event/:id" element={<EventDetail />} />
-          <Route path="events" element={<Events />} />
-          <Route path="admin" element={<Admin />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          {/* Main app pages - with navbar/footer */}
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Home />} />
+            <Route path="event/:id" element={<EventDetail />} />
+            <Route path="events" element={<Events />} />
+            <Route path="admin" element={<Admin />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

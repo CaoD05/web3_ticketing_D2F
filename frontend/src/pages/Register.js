@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api, { setAuthSession } from "../lib/api";
-import GoogleAuthButton from "../components/GoogleAuthButton";
+import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export default function Register() {
     const navigate = useNavigate();
@@ -10,9 +12,70 @@ export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [remember, setRemember] = useState(true);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const { login: authLogin } = useAuth();
+    const navigate = useNavigate();
+    const googleBtnRef = useRef(null);
+
+    const handleGoogleResponse = useCallback(async (response) => {
+        try {
+            setIsLoading(true);
+            const res = await axios.post("http://localhost:5000/api/auth/google", {
+                idToken: response.credential,
+            });
+
+            if (res.data.ok && res.data.token && res.data.user) {
+                authLogin(res.data.token, res.data.user);
+                alert(res.data.isNewUser
+                    ? "Đăng ký bằng Google thành công! Chào mừng bạn."
+                    : "Tài khoản đã tồn tại. Đăng nhập thành công!"
+                );
+                navigate("/");
+            } else {
+                alert("Đăng ký Google không thành công");
+            }
+        } catch (err) {
+            alert("Đăng ký Google thất bại: " + (err.response?.data?.message || err.message));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [authLogin, navigate]);
+
+    useEffect(() => {
+        const initGoogle = () => {
+            if (window.google && window.google.accounts && GOOGLE_CLIENT_ID) {
+                window.google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleGoogleResponse,
+                });
+
+                if (googleBtnRef.current) {
+                    window.google.accounts.id.renderButton(
+                        googleBtnRef.current,
+                        {
+                            theme: "outline",
+                            size: "large",
+                            width: "288",
+                            text: "signup_with",
+                            shape: "rectangular",
+                        }
+                    );
+                }
+            }
+        };
+
+        if (window.google && window.google.accounts) {
+            initGoogle();
+        } else {
+            const interval = setInterval(() => {
+                if (window.google && window.google.accounts) {
+                    clearInterval(interval);
+                    initGoogle();
+                }
+            }, 200);
+            return () => clearInterval(interval);
+        }
+    }, [handleGoogleResponse]);
 
     const register = async () => {
         if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
@@ -25,38 +88,17 @@ export default function Register() {
             return;
         }
 
-        setLoading(true);
-        setError("");
-
-        try {
-            const response = await api.post("/auth/register", {
-                FullName: fullName.trim(),
-                Email: email.trim(),
-                Password: password,
-            });
-
-            setAuthSession(response.data.token, response.data.user, remember);
-            navigate("/");
-        } catch (requestError) {
-            setError(requestError.response?.data?.message || "Đăng ký thất bại");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGoogleCredential = async (credential) => {
-        setLoading(true);
-        setError("");
-
-        try {
-            const response = await api.post("/auth/google", { credential });
-            setAuthSession(response.data.token, response.data.user, true);
-            navigate("/");
-        } catch (requestError) {
-            setError(requestError.response?.data?.message || "Đăng ký Google thất bại");
-        } finally {
-            setLoading(false);
-        }
+        setIsLoading(true);
+        axios.post("http://localhost:5000/api/auth/register", {
+            Email: email, Password: password
+        }).then(() => {
+            alert("Registration successful! Please login.");
+            window.location.href = "/auth/login";
+        }).catch(err => {
+            alert("Registration failed: " + (err.response?.data?.message || "Unknown error"));
+        }).finally(() => {
+            setIsLoading(false);
+        });
     };
 
     return (
@@ -131,21 +173,23 @@ export default function Register() {
                                 />
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-3">
-                                <label className="flex items-center gap-2 text-sm text-white/75">
-                                    <input
-                                        type="checkbox"
-                                        checked={remember}
-                                        onChange={(event) => setRemember(event.target.checked)}
-                                        className="h-4 w-4 rounded border-white/30 bg-transparent text-yellow-400 focus:ring-yellow-400"
-                                    />
-                                    Remember me for 30 days
-                                </label>
-                            </div>
+                                    <div className="mb-3">
+                                        <button
+                                            type="submit"
+                                            disabled={isLoading}
+                                            className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 disabled:bg-gray-400 px-2 py-1.5 rounded-md"
+                                        >
+                                            {isLoading ? 'Đang xử lý...' : 'Sign up'}
+                                        </button>
 
-                            {error ? (
-                                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-                                    {error}
+                                        {/* Google Sign-Up Button */}
+                                        <div ref={googleBtnRef} className="flex justify-center w-full"></div>
+                                    </div>
+                                </form>
+
+                                <div className="text-center">
+                                    <span className="text-xs text-gray-400 font-semibold">Already have account?</span>
+                                    <Link to="/auth/login" className="text-xs font-semibold text-purple-700 ml-1">Sign in</Link>
                                 </div>
                             ) : null}
 

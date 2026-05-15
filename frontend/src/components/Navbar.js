@@ -37,6 +37,14 @@ function AuthLinks() {
 }
 
 export default function Navbar() {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
+
     return (
         <div className="sticky top-0 z-50 flex items-center justify-between bg-black px-8 py-4 text-white">
             <Link to="/" className="text-2xl font-bold text-yellow-400">

@@ -1,6 +1,9 @@
 require("dotenv").config();
 const crypto = require("crypto");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { isAddress } = require("ethers");
+const { OAuth2Client } = require("google-auth-library");
 const prisma = require("../utils/prismaClient");
 const { isAddress } = require("ethers");
 
@@ -132,6 +135,7 @@ async function login(req, res) {
       ok: true,
       message: "Đăng nhập thành công",
       token,
+      user: toPublicUser(user),
       user: toPublicUser(user),
     });
   } catch (error) {

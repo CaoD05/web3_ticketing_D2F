@@ -25,11 +25,8 @@ export default function Home() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        api.get("/events")
-            .then(res => {
-                const rawEvents = res.data?.data || [];
-                setEvents(rawEvents.map(normalizeEvent));
-            })
+        axios.get("http://localhost:5000/api/events")
+            .then(res => setEvents(res.data.data || []))
             .catch(() => setEvents([]))
             .finally(() => setLoading(false));
     }, []);

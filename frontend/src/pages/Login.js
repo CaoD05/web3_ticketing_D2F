@@ -1,53 +1,102 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api, { setAuthSession } from "../lib/api";
-import GoogleAuthButton from "../components/GoogleAuthButton";
+import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export default function Login() {
     const navigate = useNavigate();
     const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [remember, setRemember] = useState(true);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [remember, setRemember] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const { login: authLogin } = useAuth();
+    const navigate = useNavigate();
+    const googleBtnRef = useRef(null);
 
-    const login = async () => {
-        if (!email.trim() || !password) {
-            setError("Vui lòng nhập email và mật khẩu.");
-            return;
-        }
-
-        setLoading(true);
-        setError("");
-
+    const handleGoogleResponse = useCallback(async (response) => {
         try {
-            const response = await api.post("/auth/login", {
-                email: email.trim(),
-                password,
+            setIsLoading(true);
+            const res = await axios.post("http://localhost:5000/api/auth/google", {
+                idToken: response.credential,
             });
 
-            setAuthSession(response.data.token, response.data.user, remember);
-            navigate("/");
-        } catch (requestError) {
-            setError(requestError.response?.data?.message || "Đăng nhập thất bại");
+            if (res.data.ok && res.data.token && res.data.user) {
+                authLogin(res.data.token, res.data.user);
+                alert(res.data.isNewUser
+                    ? "Đăng ký bằng Google thành công! Chào mừng bạn."
+                    : "Đăng nhập bằng Google thành công!"
+                );
+                navigate("/");
+            } else {
+                alert("Đăng nhập Google không thành công");
+            }
+        } catch (err) {
+            alert("Đăng nhập Google thất bại: " + (err.response?.data?.message || err.message));
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
-    };
+    }, [authLogin, navigate]);
 
-    const handleGoogleCredential = async (credential) => {
-        setLoading(true);
-        setError("");
+    useEffect(() => {
+        // Đợi Google Identity Services SDK load xong
+        const initGoogle = () => {
+            if (window.google && window.google.accounts && GOOGLE_CLIENT_ID) {
+                window.google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleGoogleResponse,
+                });
 
+                // Render nút Google chính thức vào div
+                if (googleBtnRef.current) {
+                    window.google.accounts.id.renderButton(
+                        googleBtnRef.current,
+                        {
+                            theme: "outline",
+                            size: "large",
+                            width: "288",
+                            text: "signin_with",
+                            shape: "rectangular",
+                        }
+                    );
+                }
+            }
+        };
+
+        // Nếu SDK đã load → init ngay, nếu chưa → đợi
+        if (window.google && window.google.accounts) {
+            initGoogle();
+        } else {
+            const interval = setInterval(() => {
+                if (window.google && window.google.accounts) {
+                    clearInterval(interval);
+                    initGoogle();
+                }
+            }, 200);
+            return () => clearInterval(interval);
+        }
+    }, [handleGoogleResponse]);
+
+    const login = async () => {
         try {
-            const response = await api.post("/auth/google", { credential });
-            setAuthSession(response.data.token, response.data.user, true);
-            navigate("/");
-        } catch (requestError) {
-            setError(requestError.response?.data?.message || "Đăng nhập Google thất bại");
+            setIsLoading(true);
+            const res = await axios.post("http://localhost:5000/api/auth/login", {
+                email, password
+            });
+            
+            if (res.data.ok && res.data.token && res.data.user) {
+                authLogin(res.data.token, res.data.user);
+                alert("Đăng nhập thành công!");
+                navigate("/");
+            } else {
+                alert("Đăng nhập không thành công");
+            }
+        } catch (err) {
+            alert("Đăng nhập thất bại: " + (err.response?.data?.message || err.message));
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -111,27 +160,17 @@ export default function Login() {
                                 </label>
                             </div>
 
-                            {error ? (
-                                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-                                    {error}
-                                </div>
-                            ) : null}
+                            <div className="mb-3">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 disabled:bg-gray-400 px-2 py-1.5 rounded-md"
+                                >
+                                    {isLoading ? 'Đang đăng nhập...' : 'Sign in'}
+                                </button>
 
-                            <button
-                                type="button"
-                                onClick={login}
-                                disabled={loading}
-                                className="w-full rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                                {loading ? "Signing in..." : "Sign in"}
-                            </button>
-
-                            <div className="pt-2">
-                                <GoogleAuthButton
-                                    onCredential={handleGoogleCredential}
-                                    label="Sign in with Google"
-                                    clientId={googleClientId}
-                                />
+                                {/* Google Sign-In Button */}
+                                <div ref={googleBtnRef} className="flex justify-center w-full"></div>
                             </div>
                         </div>
 
