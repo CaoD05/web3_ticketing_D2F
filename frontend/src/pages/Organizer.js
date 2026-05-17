@@ -222,7 +222,7 @@ export default function Organizer() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-black uppercase text-gray-400 mb-2">Giá vé (ROSE)</label>
+                                        <label className="block text-xs font-black uppercase text-gray-400 mb-2">Giá vé (TEST)</label>
                                         <input required type="number" step="0.001" className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4" value={priceEth} onChange={e => setPriceEth(e.target.value)} />
                                     </div>
                                     <div>
