@@ -159,6 +159,11 @@ export default function EventDetail() {
 
     const displayPriceEth = event.priceEth || ipfsData?.price || null;
 
+    // Compute ticket availability: Available = TotalTickets - TicketsSold
+    const totalTickets = Number(event.TotalTickets ?? event.totalTickets ?? event.totalTickets ?? 0);
+    const usedTickets = Number(event.TicketsSold ?? event.ticketsSold ?? event.Sold ?? event.sold ?? 0);
+    const availableTickets = Math.max(0, totalTickets - usedTickets);
+
     return (
         <div className="bg-gray-100 min-h-screen p-10">
             <div className="max-w-6xl mx-auto">
@@ -217,9 +222,13 @@ export default function EventDetail() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Giá vé</p>
-                                        <p className="text-3xl font-black text-red-600 italic">
-                                            {displayPriceEth ? `${displayPriceEth} ROSE` : "Sắp có"}
-                                        </p>
+                                    <p className="text-3xl font-black text-red-600 italic">TEST</p>
+                                    </div>
+
+                                    {/* Ticket Availability: Total - Used */}
+                                    <div className="mt-4">
+                                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Ticket Availability</p>
+                                    <p className="text-sm font-bold text-gray-800">{availableTickets} <span className="text-xs text-gray-400 font-normal">vé</span></p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Sẵn có</p>

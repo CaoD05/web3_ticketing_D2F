@@ -7,6 +7,7 @@ import Register from "./pages/Register";
 import EventDetail from "./pages/EventDetail";
 import MyTickets from "./pages/MyTickets";
 import Profile from "./pages/Profile";
+import Contact from "./pages/Contact";
 import Organizer from "./pages/Organizer";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLayout from "./layouts/AdminLayout";
@@ -36,6 +37,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="event/:id" element={<EventDetail />} />
             <Route path="events" element={<Events />} />
+            <Route path="contact" element={<Contact />} />
             <Route path="my-tickets" element={<MyTickets />} />
             <Route path="profile" element={<Profile />} />
             <Route path="organizer" element={<Organizer />} />

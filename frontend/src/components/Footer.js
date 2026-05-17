@@ -45,8 +45,8 @@ export default function Footer() {
                         <div className="flex flex-col flex-grow space-y-4">
                             <div className="font-semibold text-sm text-[#98a2b3]">OFFERS</div>
                             <div className="flex flex-col space-y-3">
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">For Customer</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Promotion</Link>
+                                <Link to="/events" className="text-base text-white hover:text-yellow-400">Customer</Link>
+                                <Link to="/events" className="text-base text-white hover:text-yellow-400">Promotion</Link>
                             </div>
                         </div>
 
@@ -54,10 +54,7 @@ export default function Footer() {
                         <div className="flex flex-col flex-grow space-y-4">
                             <div className="font-semibold text-sm text-[#98a2b3]">SUPPORT</div>
                             <div className="flex flex-col space-y-3">
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Contact Us</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">FAQ</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Blog</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Instructions</Link>
+                                <Link to="/contact" className="text-base text-white hover:text-yellow-400">Contact Us</Link>
                             </div>
                         </div>
                     </div>

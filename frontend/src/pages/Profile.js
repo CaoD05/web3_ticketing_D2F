@@ -3,6 +3,102 @@ import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
+function ChangePasswordForm() {
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [changing, setChanging] = useState(false);
+    const [msg, setMsg] = useState({ type: "", text: "" });
+
+    const handleChange = async (e) => {
+        e.preventDefault();
+        setMsg({ type: "", text: "" });
+
+        if (newPassword !== confirmPassword) {
+            setMsg({ type: "error", text: "Mật khẩu mới không khớp." });
+            return;
+        }
+
+        if (!currentPassword || !newPassword) {
+            setMsg({ type: "error", text: "Vui lòng điền đầy đủ thông tin." });
+            return;
+        }
+
+        setChanging(true);
+        try {
+            const res = await api.put("/auth/change-password", {
+                currentPassword,
+                newPassword
+            });
+
+            if (res.data && res.data.ok) {
+                setMsg({ type: "success", text: "Đổi mật khẩu thành công." });
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+            } else {
+                setMsg({ type: "error", text: res.data?.message || "Không thể đổi mật khẩu." });
+            }
+        } catch (err) {
+            console.error("Change password error:", err);
+            setMsg({ type: "error", text: err.response?.data?.message || "Lỗi khi đổi mật khẩu." });
+        } finally {
+            setChanging(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleChange} className="space-y-4">
+            <div>
+                <label className="block text-xs font-black uppercase text-gray-400 mb-2 ml-1">Mật khẩu hiện tại</label>
+                <input
+                    type="password"
+                    required
+                    className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-yellow-400"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+            </div>
+
+            <div>
+                <label className="block text-xs font-black uppercase text-gray-400 mb-2 ml-1">Mật khẩu mới</label>
+                <input
+                    type="password"
+                    required
+                    className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-yellow-400"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                />
+            </div>
+
+            <div>
+                <label className="block text-xs font-black uppercase text-gray-400 mb-2 ml-1">Xác nhận mật khẩu mới</label>
+                <input
+                    type="password"
+                    required
+                    className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-yellow-400"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+            </div>
+
+            {msg.text && (
+                <div className={`p-4 rounded-2xl text-sm font-bold text-center ${msg.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                    {msg.text}
+                </div>
+            )}
+
+            <button
+                type="submit"
+                disabled={changing}
+                className={`w-full py-3 rounded-2xl font-black uppercase tracking-[0.2em] shadow transition mt-4 ${changing ? "bg-gray-300 text-gray-500" : "bg-black text-white hover:bg-gray-800"}`}>
+                {changing ? "Đang đổi..." : "Đổi mật khẩu"}
+            </button>
+        </form>
+    );
+}
+
+
 export default function Profile() {
     const { user, login: updateAuthContext, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -134,6 +230,12 @@ export default function Profile() {
                             {updating ? "Đang lưu..." : "Lưu thay đổi"}
                         </button>
                     </form>
+                </div>
+
+                {/* Change Password Section */}
+                <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-100 mt-8">
+                    <h2 className="text-2xl font-black mb-6 text-center">Đổi mật khẩu</h2>
+                    <ChangePasswordForm />
                 </div>
                 
                 <div className="mt-8 text-center">
