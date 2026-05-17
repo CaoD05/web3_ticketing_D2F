@@ -53,33 +53,240 @@ async function resolveCreatorUserId(wallet) {
   return user?.UserID ?? null;
 }
 
-// ─── Event Handlers ───
+// ─── Import Helpers ───
+const { buildMetaUrlCandidates, normalizeImageCid } = require("../utils/metadataHelper");
 
 async function persistEventCreated(contract, eventId, name, price, totalTickets, organizer, metaURL, txHash) {
   try {
     const eventIdNum = Number(eventId);
     const userId = await resolveCreatorUserId(organizer);
-    
-    // Fetch more details from contract if needed
-    const onChain = await contract.events(eventId);
 
-    await prisma.event.upsert({
-      where: { EventID: eventIdNum },
-      update: { EventName: name, Price: price.toString(), TotalTickets: Number(totalTickets), MetaURL: metaURL, CreatedBy: userId, IsCancelled: onChain.cancelled },
-      create: { EventID: eventIdNum, EventName: name, Price: price.toString(), TotalTickets: Number(totalTickets), MetaURL: metaURL, CreatedBy: userId }
+    // Fetch full on-chain event details to get the startTime
+    let onChainDate = null;
+    try {
+      const evData = await contract.events(eventIdNum);
+      if (evData && evData.startTime) {
+        onChainDate = new Date(Number(evData.startTime) * 1000);
+      }
+    } catch (contractErr) {
+      console.warn(`[Web3] Could not fetch on-chain date for event ${eventIdNum}:`, contractErr.message);
+    }
+
+    // NEW: Fetch IPFS Metadata to hydrate missing fields (Location, Category, Images)
+    let ipfsDetails = { location: null, category: null, banner: null, detail: null };
+    if (metaURL) {
+      const candidates = buildMetaUrlCandidates(metaURL);
+      for (const url of candidates) {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const json = await response.json();
+            ipfsDetails = {
+              location: json.location || null,
+              category: json.category || null,
+              banner: normalizeImageCid(json.banner_image || json.image),
+              detail: normalizeImageCid(json.detail_image || json.image || json.banner_image)
+            };
+            break; 
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 1. Check if we already have this on-chain event linked
+    const alreadyExists = await prisma.event.findUnique({
+      where: { ContractEventID: eventIdNum }
     });
-    console.log(`[Web3] Event ${eventIdNum} synced.`);
-  } catch (e) { console.error("[Web3] EventCreated error:", e.message); }
+
+    if (alreadyExists) {
+      console.log(`[Web3] Event ${eventIdNum} already exists. Updating.`);
+      await prisma.event.update({
+        where: { EventID: alreadyExists.EventID },
+        data: { 
+          EventName: name, 
+          Price: price.toString(), 
+          TotalTickets: Number(totalTickets),
+          EventDate: onChainDate || alreadyExists.EventDate,
+          Location: ipfsDetails.location || alreadyExists.Location,
+          EventType: ipfsDetails.category || alreadyExists.EventType,
+          BannerURL: ipfsDetails.banner || alreadyExists.BannerURL,
+          DetailURL: ipfsDetails.detail || alreadyExists.DetailURL,
+          ContractAddress: process.env.CONTRACT_ADDRESS || alreadyExists.ContractAddress,
+          // Sync the single ticket type
+          TicketTypes: {
+            updateMany: {
+              where: { TypeName: "Standard" },
+              data: { Price: price.toString(), Quantity: Number(totalTickets) }
+            }
+          }
+        }
+      });
+      return;
+    }
+
+    // 2. Try to find a "draft" event (created by API but not linked yet)
+    let existingEvent = await prisma.event.findFirst({
+      where: {
+        AND: [
+          { ContractEventID: null },
+          { OR: [
+              { MetaURL: metaURL },
+              { AND: [{ EventName: name }, { CreatedBy: userId }] }
+            ] 
+          }
+        ]
+      },
+      include: { TicketTypes: true }
+    });
+
+    if (existingEvent) {
+      await prisma.event.update({
+        where: { EventID: existingEvent.EventID },
+        data: { 
+          ContractEventID: eventIdNum, 
+          Price: price.toString(), 
+          TotalTickets: Number(totalTickets),
+          EventDate: onChainDate || existingEvent.EventDate,
+          Location: ipfsDetails.location || existingEvent.Location,
+          EventType: ipfsDetails.category || existingEvent.EventType,
+          BannerURL: ipfsDetails.banner || existingEvent.BannerURL,
+          DetailURL: ipfsDetails.detail || existingEvent.DetailURL,
+          ContractAddress: CONTRACT_ADDRESS,
+          // Ensure at least one Standard type exists and matches
+          TicketTypes: existingEvent.TicketTypes.length > 0 
+            ? {
+                updateMany: {
+                  where: { TicketTypeID: existingEvent.TicketTypes[0].TicketTypeID },
+                  data: { TypeName: "Standard", Price: price.toString(), Quantity: Number(totalTickets) }
+                }
+              }
+            : {
+                create: { TypeName: "Standard", Price: price.toString(), Quantity: Number(totalTickets) }
+              }
+        }
+      });
+      console.log(`[Web3] Linked on-chain event ${eventIdNum} to DB record ${existingEvent.EventID}`);
+    } else {
+      // 3. Create fresh record (Using relation syntax to be safer)
+      const data = { 
+        ContractEventID: eventIdNum, 
+        EventName: name, 
+        Price: price.toString(), 
+        TotalTickets: Number(totalTickets), 
+        MetaURL: metaURL,
+        EventDate: onChainDate,
+        Location: ipfsDetails.location,
+        EventType: ipfsDetails.category,
+        BannerURL: ipfsDetails.banner,
+        DetailURL: ipfsDetails.detail,
+        ContractAddress: CONTRACT_ADDRESS,
+        TicketTypes: {
+          create: {
+            TypeName: "Standard",
+            Price: price.toString(),
+            Quantity: Number(totalTickets)
+          }
+        }
+      };
+
+      if (userId) {
+        data.Creator = { connect: { UserID: userId } };
+      }
+
+      const newEvent = await prisma.event.create({ data });
+      console.log(`[Web3] Created new event with single Standard type. DB ID: ${newEvent.EventID}`);
+    }
+  } catch (e) { 
+    console.error("[Web3] EventCreated sync error:", e.message); 
+  }
 }
+
 
 async function persistTicketPurchased(ticketId, eventId, buyer, txHash) {
   try {
-    await prisma.ticket.upsert({
-      where: { TokenID: ticketId.toString() },
-      update: { OwnerWallet: buyer, TransactionHash: txHash },
-      create: { TicketTypeID: Number(eventId), OwnerWallet: buyer, TokenID: ticketId.toString(), TransactionHash: txHash }
+    const ticketIdStr = ticketId.toString();
+    const eventIdNum = Number(eventId);
+    
+    // 1. Find the Event in DB
+    const event = await prisma.event.findUnique({
+      where: { ContractEventID: eventIdNum },
+      include: { TicketTypes: true }
     });
-    console.log(`[Web3] Ticket ${ticketId} purchased by ${buyer}.`);
+
+    if (!event) {
+      console.warn(`[Web3] Received ticket for unknown on-chain event ${eventIdNum}. Skipping.`);
+      return;
+    }
+
+    // 2. Resolve TicketType (Strictly use the first/only type)
+    let ticketType = event.TicketTypes[0];
+    if (!ticketType) {
+      // Create it if it somehow doesn't exist
+      ticketType = await prisma.ticketType.create({
+        data: {
+          EventID: event.EventID,
+          TypeName: "Standard",
+          Price: event.Price || 0,
+          Quantity: event.TotalTickets
+        }
+      });
+    }
+
+    // 3. Find User by Wallet
+    const user = await prisma.user.findFirst({
+      where: { WalletAddress: { equals: buyer, mode: "insensitive" } }
+    });
+
+    // 4. Handle Order (Idempotency)
+    let order = await prisma.order.findFirst({
+      where: { TxHash: txHash }
+    });
+
+    if (!order) {
+      order = await prisma.order.create({
+        data: {
+          UserID: user?.UserID || null,
+          TicketTypeID: ticketType.TicketTypeID, 
+          Status: "confirmed",
+          TxHash: txHash,
+          TotalAmount: ticketType.Price || 0
+        }
+      });
+    } else {
+      if (order.Status !== "confirmed") {
+        await prisma.order.update({
+          where: { OrderID: order.OrderID },
+          data: { Status: "confirmed", TicketTypeID: ticketType.TicketTypeID }
+        });
+      }
+    }
+
+    // 5. Upsert Ticket
+    await prisma.ticket.upsert({
+      where: { TokenID: ticketIdStr },
+      update: { 
+        OwnerWallet: buyer, 
+        TransactionHash: txHash,
+        OrderID: order.OrderID,
+        TicketTypeID: ticketType.TicketTypeID
+      },
+      create: { 
+        TokenID: ticketIdStr,
+        TicketTypeID: ticketType.TicketTypeID, 
+        OwnerWallet: buyer, 
+        TransactionHash: txHash,
+        OrderID: order.OrderID,
+        IsUsed: false
+      }
+    });
+
+    // 6. Update Event tickets sold
+    await prisma.event.update({
+      where: { EventID: event.EventID },
+      data: { TicketsSold: { increment: 1 } }
+    });
+
+    console.log(`[Web3] Ticket ${ticketIdStr} processed. Linked to Order ${order.OrderID}`);
   } catch (e) { console.error("[Web3] TicketPurchased error:", e.message); }
 }
 

@@ -14,7 +14,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 1000,
       },
       // Sapphire is based on the Paris EVM version. 
       // Specifying this avoids issues with newer opcodes (like PUSH0)

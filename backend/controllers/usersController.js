@@ -293,11 +293,53 @@ async function updateMe(req, res) {
   }
 }
 
+// ─── PUT /api/users/:id/status ───────────────────────────────────────────────
+// Đình chỉ hoặc mở khóa tài khoản (Admin only)
+async function updateUserStatus(req, res) {
+  try {
+    const userId = Number(req.params.id);
+    const { IsSuspended } = req.body;
+
+    if (IsSuspended === undefined) {
+      return res.status(400).json({ ok: false, message: "IsSuspended field is required" });
+    }
+
+    if (req.user.userId === userId) {
+      return res.status(403).json({ ok: false, message: "Cannot suspend your own account" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { UserID: userId },
+      data: { IsSuspended: !!IsSuspended },
+    });
+
+    // Log the action
+    await prisma.systemAuditLog.create({
+      data: {
+        AdminID: req.user.userId,
+        Action: IsSuspended ? "SUSPEND_USER" : "UNSUSPEND_USER",
+        TargetType: "User",
+        TargetID: String(userId),
+        Details: JSON.stringify({ IsSuspended })
+      }
+    });
+
+    return res.status(200).json({
+      ok: true,
+      message: `User ${IsSuspended ? 'suspended' : 'activated'} successfully`,
+      data: updated
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Failed to update user status", error: error.message });
+  }
+}
+
 module.exports = {
   getAllUsers,
   getUserById,
   createUser,
   updateUserRole,
+  updateUserStatus,
   deleteUser,
   updateMe,
 };

@@ -1,42 +1,83 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../lib/api";
+import normalizeEvent from "../lib/normalizeEvent";
 
-const slides = [
+const FALLBACK_SLIDES = [
   {
-    id: 1,
-    image:
-      "https://res.cloudinary.com/du6xqz29n/image/upload/f_auto,q_auto/cover_-_5760_x_1728_px_1800x540_xkebfd",
+    id: "f1",
+    bannerImage: "https://res.cloudinary.com/du6xqz29n/image/upload/f_auto,q_auto/cover_-_5760_x_1728_px_1800x540_xkebfd",
   },
   {
-    id: 2,
-    image:
-      "https://res.cloudinary.com/du6xqz29n/image/upload/q_auto/f_auto/v1775157910/0305_CoverPC_xqahmg.webp",
+    id: "f2",
+    bannerImage: "https://res.cloudinary.com/du6xqz29n/image/upload/q_auto/f_auto/v1775157910/0305_CoverPC_xqahmg.webp",
   },
   {
-    id: 3,
-    image:
-      "https://res.cloudinary.com/du6xqz29n/image/upload/q_auto/f_auto/v1775157910/dd1a67e10723887dd132_1_1800x557_knf7jy.webp",
-  },
+    id: "f3",
+    bannerImage: "https://res.cloudinary.com/du6xqz29n/image/upload/q_auto/f_auto/v1775157910/dd1a67e10723887dd132_1_1800x557_knf7jy.webp",
+  }
 ];
 
 export default function Hero() {
+  const [events, setEvents] = useState([]);
   const [current, setCurrent] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % slides.length);
-    }, 4000);
-    return () => clearInterval(interval);
+    api.get("/events")
+      .then(res => {
+        const allEvents = (res.data?.data || []).map(normalizeEvent);
+        // Shuffle and take up to 5
+        const shuffled = [...allEvents].sort(() => 0.5 - Math.random()).slice(0, 5);
+        setEvents(shuffled);
+      })
+      .catch(err => {
+        console.error("Hero: Failed to fetch events", err);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const nextSlide = () => {
-    setCurrent((prev) => (prev + 1) % slides.length);
+  const activeSlides = useMemo(() => {
+    return events.length > 0 ? events : FALLBACK_SLIDES;
+  }, [events]);
+
+  // Reset timer logic
+  useEffect(() => {
+    if (activeSlides.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % activeSlides.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [current, activeSlides.length]); // Added 'current' to dependencies to reset timer on change
+
+  const nextSlide = (e) => {
+    if (e) e.stopPropagation();
+    setCurrent((prev) => (prev + 1) % activeSlides.length);
   };
 
-  const prevSlide = () => {
+  const prevSlide = (e) => {
+    if (e) e.stopPropagation();
     setCurrent((prev) =>
-      prev === 0 ? slides.length - 1 : prev - 1
+      prev === 0 ? activeSlides.length - 1 : prev - 1
     );
   };
+
+  const handleSlideClick = (slide) => {
+    if (slide.id && !slide.id.toString().startsWith('f')) {
+      navigate(`/event/${slide.id}`);
+    }
+  };
+
+  if (loading && events.length === 0) {
+    return (
+      <div className="mt-4 px-4 max-w-[1400px] mx-auto">
+        <div className="aspect-[1800/540] bg-zinc-200 animate-pulse rounded-2xl"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4">
@@ -50,14 +91,15 @@ export default function Hero() {
             className="flex h-full transition-transform duration-700 ease-in-out"
             style={{ transform: `translateX(-${current * 100}%)` }}
           >
-            {slides.map((slide) => (
+            {activeSlides.map((slide) => (
               <div
                 key={slide.id}
-                className="w-full flex-shrink-0 h-full"
+                onClick={() => handleSlideClick(slide)}
+                className="w-full flex-shrink-0 h-full cursor-pointer"
               >
                 <img
-                  src={slide.image}
-                  alt=""
+                  src={slide.bannerImage || slide.image}
+                  alt={slide.title || ""}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -81,10 +123,10 @@ export default function Hero() {
 
           {/* Dots */}
           <div className="absolute bottom-3 w-full flex justify-center gap-2">
-            {slides.map((_, index) => (
+            {activeSlides.map((_, index) => (
               <div
                 key={index}
-                onClick={() => setCurrent(index)}
+                onClick={(e) => { e.stopPropagation(); setCurrent(index); }}
                 className={`w-2.5 h-2.5 rounded-full cursor-pointer ${
                   current === index
                     ? "bg-white"

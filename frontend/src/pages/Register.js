@@ -75,14 +75,19 @@ export default function Register() {
         }
     }, [handleGoogleResponse]);
 
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        register();
+    };
+
     const register = async () => {
         if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
-            alert("Vui long nhap day du thong tin.");
+            alert("Vui lòng nhập đầy đủ thông tin.");
             return;
         }
 
         if (password !== confirmPassword) {
-            alert("Mat khau xac nhan khong khop.");
+            alert("Mật khẩu xác nhận không khớp.");
             return;
         }
 
@@ -96,13 +101,13 @@ export default function Register() {
 
             if (res.data.ok && res.data.token && res.data.user) {
                 authLogin(res.data.token, res.data.user);
-                alert("Dang ky thanh cong!");
+                alert("Đăng ký thành công!");
                 navigate("/");
             } else {
-                alert("Dang ky khong thanh cong");
+                alert("Đăng ký không thành công");
             }
         } catch (err) {
-            alert("Dang ky that bai: " + (err.response?.data?.message || err.message));
+            alert("Đăng ký thất bại: " + (err.response?.data?.message || err.message));
         } finally {
             setIsLoading(false);
         }
@@ -125,8 +130,9 @@ export default function Register() {
                             <h1 className="text-3xl font-black text-white md:text-4xl">Join the ticketing network</h1>
                         </div>
 
-                        <div className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             <input
+                                required
                                 type="text"
                                 placeholder="Your full name"
                                 value={fullName}
@@ -134,6 +140,7 @@ export default function Register() {
                                 className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
                             />
                             <input
+                                required
                                 type="email"
                                 placeholder="name@example.com"
                                 value={email}
@@ -141,6 +148,7 @@ export default function Register() {
                                 className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
                             />
                             <input
+                                required
                                 type="password"
                                 placeholder="Create a password"
                                 value={password}
@@ -148,6 +156,7 @@ export default function Register() {
                                 className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
                             />
                             <input
+                                required
                                 type="password"
                                 placeholder="Repeat the password"
                                 value={confirmPassword}
@@ -156,20 +165,19 @@ export default function Register() {
                             />
 
                             <button
-                                type="button"
-                                onClick={register}
+                                type="submit"
                                 disabled={isLoading}
-                                className="mb-1.5 block w-full rounded-md bg-yellow-400 px-2 py-2 text-center font-bold text-black hover:bg-yellow-300 disabled:bg-gray-400"
+                                className="mb-3 block w-full rounded-2xl bg-yellow-400 px-6 py-3 text-center font-bold text-black hover:bg-yellow-300 disabled:bg-gray-400 transition shadow-lg"
                             >
-                                {isLoading ? "Dang xu ly..." : "Sign up"}
+                                {isLoading ? "Đang xử lý..." : "Sign up"}
                             </button>
 
-                            <div ref={googleBtnRef} className="flex justify-center w-full"></div>
-                        </div>
+                            <div ref={googleBtnRef} className="flex justify-center w-full mt-4"></div>
+                        </form>
 
                         <div className="mt-8 text-sm text-white/70">
                             Already have an account?{" "}
-                            <Link to="/auth/login" className="font-semibold text-yellow-400 hover:text-yellow-300">
+                            <Link to="/login" className="font-semibold text-yellow-400 hover:text-yellow-300">
                                 Sign in
                             </Link>
                         </div>

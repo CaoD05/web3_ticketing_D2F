@@ -1,8 +1,9 @@
 # 📘 Web3 Ticketing — Backend API Documentation
 
 > **Base URL:** `http://localhost:5000/api`
+> **Utility Base URL:** `http://localhost:5000`
 > **Auth:** JWT Bearer Token (`Authorization: Bearer <token>`)
-> **Realtime:** Socket.io tại `http://localhost:5000`
+> **Realtime:** Socket.io at `http://localhost:5000`
 
 ---
 

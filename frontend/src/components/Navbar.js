@@ -50,29 +50,43 @@ function AuthLinks() {
 
             {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl py-2 z-[60] overflow-hidden">
-                    <Link 
-                        to="/profile" 
-                        className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition"
-                        onClick={() => setDropdownOpen(false)}
-                    >
-                        Tài khoản của tôi
-                    </Link>
+                    {user.role !== 'admin' && (
+                        <>
+                            <Link 
+                                to="/profile" 
+                                className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition"
+                                onClick={() => setDropdownOpen(false)}
+                            >
+                                Tài khoản của tôi
+                            </Link>
 
-                    <Link 
-                        to="/my-tickets" 
-                        className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition"
-                        onClick={() => setDropdownOpen(false)}
-                    >
-                        Vé của tôi
-                    </Link>
+                            <Link 
+                                to="/my-tickets" 
+                                className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition"
+                                onClick={() => setDropdownOpen(false)}
+                            >
+                                Vé của tôi
+                            </Link>
+                        </>
+                    )}
                     
-                    {(user.role === 'organizer' || user.role === 'admin') && (
+                    {user.role === 'organizer' && (
+                        <Link 
+                            to="/organizer" 
+                            className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition"
+                            onClick={() => setDropdownOpen(false)}
+                        >
+                            Quản lý sự kiện
+                        </Link>
+                    )}
+
+                    {user.role === 'admin' && (
                         <Link 
                             to="/admin" 
                             className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition"
                             onClick={() => setDropdownOpen(false)}
                         >
-                            Quản lý sự kiện
+                            Quản trị hệ thống
                         </Link>
                     )}
 

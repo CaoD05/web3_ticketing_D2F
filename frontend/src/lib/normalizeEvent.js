@@ -49,22 +49,54 @@ export default function normalizeEvent(event) {
       priceWei: null,
       priceEth: null,
       category: "Other",
+      CreatedBy: null,
+      IsHidden: false,
+      IsFeatured: false,
     };
   }
 
-  const normalizedPriceWei =
+  // Handle Price (Wei to Eth)
+  const rawPriceWei =
     event.priceWei ??
     (event.Price != null && typeof event.Price.toString === "function" ? event.Price.toString() : null) ??
     null;
 
-  const normalizedPriceEth = event.priceEth ?? toEthDisplay(event.PriceEth);
+  let normalizedPriceEth = event.priceEth;
+  if (!normalizedPriceEth && rawPriceWei) {
+    try {
+        // Use a safe numeric conversion for display
+        const ethValue = Number(rawPriceWei) / 1e18;
+        normalizedPriceEth = toEthDisplay(ethValue);
+    } catch (e) {
+        normalizedPriceEth = "0.00";
+    }
+  }
 
-  const bannerFromDb = cidToGatewayUrl(event.BannerURL ?? event.bannerurl ?? event.ImageURL ?? event.imageurl ?? null);
-  const detailFromDb = cidToGatewayUrl(event.DetailURL ?? event.detailurl ?? event.ImageURL ?? event.imageurl ?? null);
+  const bannerFromDb = cidToGatewayUrl(
+    event.BannerURL ?? 
+    event.bannerurl ?? 
+    event.banner_image ?? 
+    event.ImageURL ?? 
+    event.imageurl ?? 
+    event.image ?? 
+    null
+  );
+  
+  const detailFromDb = cidToGatewayUrl(
+    event.DetailURL ?? 
+    event.detailurl ?? 
+    event.detail_image ?? 
+    event.ImageURL ?? 
+    event.imageurl ?? 
+    event.image ?? 
+    bannerFromDb ?? 
+    null
+  );
 
   return {
-    ...event,
+    ...event, // Keep raw fields like TicketsSold, TotalTickets, etc.
     id: event.id ?? event.EventID ?? null,
+    contractEventId: event.ContractEventID ?? null,
     title: event.title ?? event.EventName ?? "Untitled Event",
     description: event.description ?? event.Description ?? event.MetaURL ?? "",
     metaURL: event.metaURL ?? event.MetaURL ?? "",
@@ -74,7 +106,10 @@ export default function normalizeEvent(event) {
     location: event.location ?? event.Location ?? "",
     category: event.category ?? event.type ?? event.EventType ?? "Other",
     price: event.price ?? normalizedPriceEth,
-    priceWei: normalizedPriceWei,
+    priceWei: rawPriceWei,
     priceEth: normalizedPriceEth,
+    CreatedBy: event.CreatedBy ?? event.createdby ?? null,
+    IsHidden: !!(event.IsHidden ?? event.ishidden ?? false),
+    IsFeatured: !!(event.IsFeatured ?? event.isfeatured ?? false),
   };
 }

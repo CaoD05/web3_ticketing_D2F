@@ -8,13 +8,18 @@ const {
   cancelEvent,
   createEventMetadata,
 } = require("../controllers/eventsController");
-const { verifyToken, requireRole } = require("../middleware/authMiddleware");
+const { 
+  verifyToken, 
+  verifyTokenOptional, 
+  requireRole 
+} = require("../middleware/authMiddleware");
 const multerMiddleware = require("../middleware/multerMiddleware");
 
 const router = express.Router();
 
 // Public
-router.get("/events", getAllEvents);
+router.get("/events", verifyTokenOptional, getAllEvents);
+router.get("/events/:id", verifyTokenOptional, getEventById);
 
 // Admin/Organizer — tạo metadata IPFS (Upload ảnh & JSON)
 router.post(

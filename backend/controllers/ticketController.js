@@ -155,27 +155,66 @@ async function getMyTickets(req, res) {
       }
     });
 
-    const parsedTickets = tickets.map(t => {
-      let EventName = null;
-      let EventDate = null;
+    // ─── Blockchain Verification ───
+    // Filter out burned tickets by checking on-chain ownership
+    let contract = null;
+    try {
+      const { getReadOnlyContract } = require("../services/web3");
+      contract = getReadOnlyContract();
+    } catch (e) {
+      console.warn("[ticketController] RPC unavailable, skipping live verification");
+    }
+
+    const verifiedTickets = [];
+    for (const t of tickets) {
+      let isStillOwned = true;
       
-      // Fallback in case relation wasn't properly established
-      if (t.TicketType && t.TicketType.Event) {
-         EventName = t.TicketType.Event.EventName;
-         EventDate = t.TicketType.Event.EventDate;
+      // If contract is available, check if token still exists and is owned by this wallet
+      if (contract && t.TokenID) {
+        try {
+          const ownerOnChain = await contract.ownerOf(t.TokenID);
+          if (ownerOnChain.toLowerCase() !== wallet.toLowerCase()) {
+            isStillOwned = false;
+          }
+        } catch (err) {
+          // If ownerOf reverts (e.g., token burned), mark as not owned
+          isStillOwned = false; 
+        }
       }
-      
-      return {
-        ...t,
-        EventName,
-        EventDate,
-        TicketType: undefined // Remove nested property to match old format
-      };
-    });
+
+      if (isStillOwned) {
+        let EventName = null;
+        let EventDate = null;
+        let BannerURL = null;
+        let DetailURL = null;
+        
+        if (t.TicketType && t.TicketType.Event) {
+           EventName = t.TicketType.Event.EventName;
+           EventDate = t.TicketType.Event.EventDate;
+           BannerURL = t.TicketType.Event.BannerURL;
+           DetailURL = t.TicketType.Event.DetailURL;
+        }
+        
+        verifiedTickets.push({
+          ...t,
+          EventName,
+          EventDate,
+          BannerURL,
+          DetailURL,
+          TicketType: undefined 
+        });
+      } else if (t.TokenID) {
+          // Background Cleanup: If burned, update DB so we don't check again next time
+          prisma.ticket.update({
+              where: { TicketID: t.TicketID },
+              data: { OwnerWallet: "0x0000000000000000000000000000000000000000" }
+          }).catch(() => {});
+      }
+    }
 
     return res.status(200).json({
       ok: true,
-      data: parsedTickets,
+      data: verifiedTickets,
     });
   } catch (error) {
     return res.status(500).json({

@@ -6,6 +6,23 @@ import { fetchIPFSMetadata, parseEventMetadata } from "../lib/ipfs";
 import { buyTicketOnChain } from "../lib/web3";
 import { useAuth } from "../context/AuthContext";
 
+const FALLBACK_EVENT_IMAGE =
+  "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80";
+
+function formatDate(value) {
+    if (!value) return "Chưa xác định";
+    try {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return new Intl.DateTimeFormat("vi-VN", {
+            dateStyle: "medium",
+            timeStyle: "short",
+        }).format(date);
+    } catch (e) {
+        return value;
+    }
+}
+
 export default function EventDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -63,10 +80,17 @@ export default function EventDetail() {
             return;
         }
 
-        // Check if event has ticket types
-        const ticketTypeId = event.TicketTypes?.[0]?.TicketTypeID;
-        if (!ticketTypeId) {
-            alert("Sự kiện này hiện chưa có loại vé để mua. Vui lòng liên hệ ban tổ chức.");
+        // AUTO-SELECT SINGLE TICKET TYPE
+        // We find the 'Standard' type or just the first one available
+        const ticketType = event.TicketTypes?.find(t => t.TypeName === "Standard") || event.TicketTypes?.[0];
+        
+        if (!ticketType) {
+            alert("Đang đồng bộ loại vé. Vui lòng thử lại sau vài giây.");
+            return;
+        }
+
+        if (event.contractEventId === null) {
+            alert("Sự kiện này chưa được kích hoạt trên Blockchain. Vui lòng thử lại sau.");
             return;
         }
 
@@ -75,21 +99,22 @@ export default function EventDetail() {
 
         try {
             // Price in Wei is needed for the contract call
-            // event.price is stored as a string or decimal in the backend
             let priceWei;
             try {
-                priceWei = window.BigInt(event.price || "0");
+                // event.price is normalizedPriceEth, but we need Wei
+                // event.Price from DB is Decimal, normalizeEvent puts it in priceWei
+                priceWei = window.BigInt(event.priceWei || "0");
             } catch (e) {
-                console.error("Invalid price for BigInt:", event.price);
+                console.error("Invalid price for BigInt:", event.priceWei);
                 priceWei = 0n;
             }
             
             // 1. Giao dịch trên Blockchain
-            const txHash = await buyTicketOnChain(event.id, priceWei);
+            const txHash = await buyTicketOnChain(event.contractEventId, priceWei);
             
-            // 2. Đồng bộ với Backend
+            // 2. Đồng bộ với Backend (Tạo pending order)
             await api.post("/orders", {
-                TicketTypeID: ticketTypeId,
+                TicketTypeID: ticketType.TicketTypeID,
                 Quantity: 1,
                 TxHash: txHash
             });
@@ -117,125 +142,154 @@ export default function EventDetail() {
     const displayDescription = ipfsData?.description || event.description;
     const displayLocation = ipfsData?.location || event.location;
     const displayCategory = ipfsData?.category || event.category;
-    const displayImage = event.detailImage || event.bannerImage;
-    const displayPriceEth = event.priceEth || null;
+    
+    // IMAGE PRIORITY:
+    // 1. event.detailImage (Database specific detail - TRUST THIS FIRST)
+    // 2. event.bannerImage (Database fallback)
+    // 3. ipfsData.image (Legacy fallback from IPFS)
+    const detailImage = 
+        event.detailImage || 
+        event.bannerImage || 
+        ipfsData?.image || 
+        FALLBACK_EVENT_IMAGE;
+
+    const bannerImage = 
+        event.bannerImage || 
+        detailImage;
+
+    const displayPriceEth = event.priceEth || ipfsData?.price || null;
 
     return (
         <div className="bg-gray-100 min-h-screen p-10">
-            <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow p-6 flex flex-col md:flex-row gap-8">
-                <div className="md:w-1/2">
-                    <img
-                        src={displayImage}
-                        alt={displayTitle || "Event image"}
-                        className="w-full rounded-xl object-cover aspect-video"
-                    />
-                </div>
-
-                <div className="flex-1">
-                    <h1 className="text-3xl font-bold text-gray-900">{displayTitle}</h1>
-
-                    {ipfsLoading && (
-                        <p className="text-sm text-gray-400 mt-2 italic">Đang tải thông tin từ IPFS...</p>
-                    )}
-
-                    {ipfsError && (
-                        <p className="text-sm text-red-500 mt-2">{ipfsError}</p>
-                    )}
-
-                    {displayDescription && (
-                        <p className="text-gray-600 mt-4 leading-relaxed">{displayDescription}</p>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4 mt-6 border-t pt-6">
-                        {ipfsData?.organizer && (
-                            <div>
-                                <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Tổ chức</p>
-                                <p className="text-sm text-gray-800">{ipfsData.organizer}</p>
-                            </div>
-                        )}
-
-                        {displayLocation && (
-                            <div>
-                                <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Địa điểm</p>
-                                <p className="text-sm text-gray-800">{displayLocation}</p>
-                            </div>
-                        )}
-
-                        {ipfsData?.eventDate && (
-                            <div>
-                                <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Ngày diễn ra</p>
-                                <p className="text-sm text-gray-800">{ipfsData.eventDate}</p>
-                            </div>
-                        )}
-
-                        {displayCategory && (
-                            <div>
-                                <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Thể loại</p>
-                                <p className="text-sm text-gray-800">{displayCategory}</p>
-                            </div>
-                        )}
+            <div className="max-w-6xl mx-auto">
+                <div className="flex flex-col md:flex-row gap-8">
+                    {/* Left: Detail Image & Info */}
+                    <div className="md:w-1/2 space-y-6">
+                        <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-gray-100 p-2">
+                             <img
+                                src={detailImage}
+                                alt="Event Detail"
+                                className="w-full rounded-[1.5rem] object-cover aspect-video"
+                            />
+                        </div>
+                        
+                        <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+                             <h2 className="text-xl font-black mb-4 uppercase tracking-wider text-gray-900">Mô tả sự kiện</h2>
+                             {displayDescription && (
+                                <p className="text-gray-600 leading-relaxed whitespace-pre-line">{displayDescription}</p>
+                             )}
+                             {!displayDescription && (
+                                <p className="text-gray-400 italic">Chưa có mô tả chi tiết cho sự kiện này.</p>
+                             )}
+                        </div>
                     </div>
 
-                    {ipfsData?.tags && ipfsData.tags.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            {ipfsData.tags.map((tag, idx) => (
-                                <span
-                                    key={idx}
-                                    className="bg-gray-100 text-gray-600 text-[10px] uppercase font-bold px-2 py-1 rounded"
-                                >
-                                    {tag}
-                                </span>
-                            ))}
+                    {/* Right: Ticket & Stats */}
+                    <div className="flex-1 space-y-6">
+                        <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+                            <h1 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">{displayTitle}</h1>
+                            <h2 className="text-sm font-bold mb-6 uppercase tracking-wider text-gray-400 border-b pb-4">Chi tiết vé</h2>
+                            
+                            <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                {displayLocation && (
+                                    <div className="col-span-2">
+                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Địa điểm</p>
+                                        <p className="text-sm font-bold text-gray-800">{displayLocation}</p>
+                                    </div>
+                                )}
+
+                                {displayCategory && (
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Thể loại</p>
+                                        <p className="text-sm font-bold text-gray-800">{displayCategory}</p>
+                                    </div>
+                                )}
+
+                                {ipfsData?.eventDate && (
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Ngày diễn ra</p>
+                                        <p className="text-sm font-bold text-gray-800">{formatDate(ipfsData.eventDate)}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-8 pt-8 border-t border-gray-50">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Giá vé</p>
+                                        <p className="text-3xl font-black text-red-600 italic">
+                                            {displayPriceEth ? `${displayPriceEth} ROSE` : "Sắp có"}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Sẵn có</p>
+                                        <p className="text-2xl font-black text-gray-900">{event.remainingTickets ?? event.totalTickets} <span className="text-xs text-gray-400 font-normal">vé</span></p>
+                                    </div>
+                                </div>
+
+                                {buyError && (
+                                    <div className="mt-6 p-4 bg-red-50 text-red-600 text-xs font-bold rounded-2xl border border-red-100">
+                                        ⚠️ {buyError}
+                                    </div>
+                                )}
+
+                                {user && event && user.userId === event.CreatedBy && user.role === 'organizer' && (
+                                    <button
+                                        onClick={() => navigate("/organizer")}
+                                        className="mt-8 w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition shadow-xl bg-gray-900 text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        Quản lý sự kiện
+                                    </button>
+                                )}
+
+                                {user && user.role === 'admin' && (
+                                    <button
+                                        onClick={() => navigate("/admin")}
+                                        className="mt-8 w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition shadow-xl bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        Quản trị hệ thống
+                                    </button>
+                                )}
+
+                                {(!user || (user.userId !== event.CreatedBy && user.role !== 'admin')) && (
+                                    <button
+                                        onClick={handleBuy}
+                                        disabled={buying || !displayPriceEth}
+                                        className={`mt-8 w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition shadow-xl ${
+                                            buying || !displayPriceEth 
+                                            ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
+                                            : "bg-yellow-400 text-black hover:bg-yellow-300 hover:scale-[1.02] active:scale-[0.98]"
+                                        }`}
+                                    >
+                                        {buying ? "Đang xử lý..." : "Mua vé ngay"}
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    )}
 
-                    <div className="mt-8 p-6 bg-gray-50 rounded-xl">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-500">Giá vé</p>
-                                <p className="text-2xl font-black text-red-600">
-                                    {displayPriceEth ? `${displayPriceEth} TEST` : "Giá sẽ cập nhật sớm"}
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-sm text-gray-500">Còn lại</p>
-                                <p className="text-xl font-bold text-gray-800">{event.remainingTickets ?? event.totalTickets}</p>
+                        {/* Additional Info Section */}
+                        <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+                            <h2 className="text-sm font-black mb-4 uppercase tracking-widest text-gray-400">Thông tin kỹ thuật</h2>
+                            <div className="space-y-4">
+                                {event.contractEventId !== null && (
+                                    <div>
+                                        <p className="text-[10px] uppercase font-black text-gray-300 mb-1">Smart Contract Address</p>
+                                        <p className="text-[10px] font-mono text-blue-500 break-all bg-blue-50 p-2 rounded-lg border border-blue-100">
+                                            {event.ContractAddress || "Chưa đồng bộ"}
+                                        </p>
+                                    </div>
+                                )}
+                                {event.metaURL && (
+                                    <div>
+                                        <p className="text-[10px] uppercase font-black text-gray-300 mb-1">IPFS Metadata CID</p>
+                                        <p className="text-[10px] font-mono text-gray-500 break-all bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                            {event.metaURL}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        {buyError && (
-                            <div className="mt-4 p-3 bg-red-100 text-red-600 text-sm rounded-lg">
-                                {buyError}
-                            </div>
-                        )}
-
-                        {user && event && user.userId === event.CreatedBy ? (
-                            <button
-                                onClick={() => navigate("/admin")}
-                                className="mt-6 w-full py-4 rounded-xl font-black uppercase tracking-widest transition shadow-lg bg-blue-600 text-white hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98]"
-                            >
-                                Quản lý sự kiện của tôi
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleBuy}
-                                disabled={buying || !displayPriceEth}
-                                className={`mt-6 w-full py-4 rounded-xl font-black uppercase tracking-widest transition shadow-lg ${
-                                    buying || !displayPriceEth 
-                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
-                                    : "bg-yellow-400 text-black hover:bg-yellow-300 hover:scale-[1.02] active:scale-[0.98]"
-                                }`}
-                            >
-                                {buying ? "Đang xử lý..." : "Mua vé ngay"}
-                            </button>
-                        )}
                     </div>
-
-                    {event.metaURL && (
-                        <p className="mt-6 text-[10px] text-gray-300 break-all font-mono">
-                            IPFS_CID: {event.metaURL}
-                        </p>
-                    )}
                 </div>
             </div>
         </div>

@@ -1,3 +1,4 @@
+require("dotenv").config();
 const PINATA_API_URL = "https://api.pinata.cloud";
 const PINATA_JWT = process.env.PINATA_JWT;
 

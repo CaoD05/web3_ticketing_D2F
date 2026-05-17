@@ -7,7 +7,9 @@ import Register from "./pages/Register";
 import EventDetail from "./pages/EventDetail";
 import MyTickets from "./pages/MyTickets";
 import Profile from "./pages/Profile";
-import Admin from "./pages/Admin";
+import Organizer from "./pages/Organizer";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminLayout from "./layouts/AdminLayout";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
 
@@ -22,6 +24,13 @@ function App() {
             <Route path="/register" element={<Register />} />
           </Route>
 
+          {/* Admin Portal - Independent Layout */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="events" element={<AdminDashboard />} /> {/* For now, use the same component with tab logic or separate later */}
+            <Route path="users" element={<AdminDashboard />} />
+          </Route>
+
           {/* Main app pages - with navbar/footer */}
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Home />} />
@@ -29,7 +38,7 @@ function App() {
             <Route path="events" element={<Events />} />
             <Route path="my-tickets" element={<MyTickets />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="admin" element={<Admin />} />
+            <Route path="organizer" element={<Organizer />} />
           </Route>
         </Routes>
       </BrowserRouter>

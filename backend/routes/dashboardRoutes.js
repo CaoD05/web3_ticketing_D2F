@@ -5,6 +5,7 @@ const {
   getEventStats,
   getCheckins,
   getCheckinStats,
+  getAuditLogs,
 } = require("../controllers/dashboardController");
 const { verifyToken, requireRole } = require("../middleware/authMiddleware");
 

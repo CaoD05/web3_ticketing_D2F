@@ -33,13 +33,15 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     mapping(uint => Event)   public events;
-    mapping(uint => Ticket)  public tickets;
+    mapping(uint => Ticket)  private tickets;
     mapping(address => uint) public withdrawableFunds;
     mapping(uint => mapping(address => uint)) public ticketsBought;
+    mapping(address => uint) public lastPurchaseTime;
 
     event EventCreated  (uint indexed eventId, string name, uint price, uint totalTickets, address organizer, string metaURL);
     event EventCancelled(uint indexed eventId);
     event TicketPurchased(uint indexed ticketId, uint indexed eventId, address indexed buyer);
+    event TicketAirdropped(uint indexed ticketId, uint indexed eventId, address indexed recipient);
     event TicketUsed    (uint indexed ticketId);
     event TicketVerified(uint indexed ticketId);
     event TicketTransferred(uint indexed ticketId, address from, address to);
@@ -71,8 +73,9 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
     // ── Events ───────────────────────────────────────────────────────────────
 
     function createEvent(string memory _name, uint _price, uint _totalTickets, uint _startTime, string memory _metaURL)
-        public onlyRole(ORGANIZER_ROLE)
+        public 
     {
+        require(hasRole(ORGANIZER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender), "Missing role");
         require(bytes(_name).length > 0, "Event name cannot be empty");
         require(_price > 0,              "Price must be greater than 0");
         require(_totalTickets > 0,       "Total tickets must be greater than 0");
@@ -101,6 +104,7 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
         require(msg.value == e.price,          "Wrong price");
         require(e.sold < e.totalTickets,       "Sold out");
         require(ticketsBought[_eventId][msg.sender] < MAX_TICKETS_PER_BUYER, "Limit reached");
+        require(block.timestamp >= lastPurchaseTime[msg.sender] + 1 minutes, "Anti-scalper: Cooldown active");
 
         uint ticketId = nextTicketId;
         tickets[ticketId] = Ticket(_eventId, false, 0);
@@ -111,9 +115,61 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
         
         withdrawableFunds[e.organizer] += e.price;
         ticketsBought[_eventId][msg.sender]++;
+        lastPurchaseTime[msg.sender] = block.timestamp;
+        
         emit TicketPurchased(ticketId, _eventId, msg.sender);
         e.sold++;
         nextTicketId++;
+    }
+
+    /**
+     * airdropTickets — Bulk mint free sponsor tickets
+     */
+    function airdropTickets(uint _eventId, address[] calldata _recipients) public {
+        Event storage e = events[_eventId];
+        require(msg.sender == e.organizer || hasRole(ADMIN_ROLE, msg.sender), "Not authorised");
+        require(!e.cancelled, "Event cancelled");
+        require(e.sold + _recipients.length <= e.totalTickets, "Not enough tickets left");
+
+        for (uint i = 0; i < _recipients.length; i++) {
+            uint ticketId = nextTicketId;
+            tickets[ticketId] = Ticket(_eventId, false, 0);
+            
+            _mint(_recipients[i], ticketId);
+            _setTokenURI(ticketId, e.MetaURL);
+            
+            emit TicketAirdropped(ticketId, _eventId, _recipients[i]);
+            e.sold++;
+            nextTicketId++;
+        }
+    }
+
+    /**
+     * refundTicket — Voluntary 80% refund before event starts
+     */
+    function refundTicket(uint _ticketId) public nonReentrant {
+        Ticket storage t = tickets[_ticketId];
+        require(ownerOf(_ticketId) == msg.sender, "Not owner");
+        require(!t.used, "Already used");
+        
+        Event storage e = events[t.eventId];
+        require(!e.cancelled, "Use claimRefund for cancelled events");
+        require(block.timestamp < e.startTime, "Event already started");
+
+        uint originalPrice = e.price;
+        uint refundAmount = (originalPrice * 80) / 100;
+        
+        require(withdrawableFunds[e.organizer] >= refundAmount, "Insufficient organizer funds for refund");
+        
+        t.used = true;
+        withdrawableFunds[e.organizer] -= refundAmount;
+        
+        _burn(_ticketId);
+        
+        (bool ok,) = payable(msg.sender).call{value: refundAmount}("");
+        require(ok, "Refund transfer failed");
+        
+        emit RefundIssued(msg.sender, refundAmount);
     }
 
     function claimRefund(uint _ticketId) public nonReentrant {
@@ -237,6 +293,11 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
         return events[_eventId].totalTickets - events[_eventId].sold;
     }
 
+    function getTicketDetails(uint _ticketId) public view returns (Ticket memory) {
+        require(ownerOf(_ticketId) == msg.sender || hasRole(ADMIN_ROLE, msg.sender), "Not authorised");
+        return tickets[_ticketId];
+    }
+
     // ── Required ERC721 overrides ─────────────────────────────────────────────
 
     function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
@@ -249,7 +310,12 @@ contract Ticketing is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
         override(ERC721, ERC721URIStorage)
         returns (string memory)
     {
-        return super.tokenURI(tokenId);
+        string memory _uri = super.tokenURI(tokenId);
+        // If it's a raw CID (no protocol), prepend ipfs://
+        if (bytes(_uri).length > 0 && bytes(_uri)[0] != 'h' && bytes(_uri)[0] != 'i') {
+            return string.concat("ipfs://", _uri);
+        }
+        return _uri;
     }
 
     function supportsInterface(bytes4 interfaceId)

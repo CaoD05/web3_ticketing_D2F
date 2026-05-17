@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { checkInTicketOnChain, refundTicketOnChain } from "../lib/web3";
+import { cidToGatewayUrl } from "../lib/ipfs";
 
 export default function MyTickets() {
     const { user, loading: authLoading } = useAuth();
@@ -9,6 +11,41 @@ export default function MyTickets() {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const handleRefund = async (ticketId, tokenId) => {
+        if (!tokenId) return alert("Vé chưa đồng bộ.");
+        if (!window.confirm("Bạn muốn trả vé? Bạn sẽ nhận lại 80% giá vé ban đầu và vé này sẽ bị hủy.")) return;
+
+        try {
+            await refundTicketOnChain(tokenId);
+            alert("Hoàn tiền thành công!");
+            window.location.reload();
+        } catch (err) {
+            alert("Lỗi hoàn tiền: " + (err.message || "Giao dịch thất bại"));
+        }
+    };
+
+
+    const handleCheckIn = async (ticketId, tokenId) => {
+        if (!tokenId) {
+            alert("Vé này chưa có TokenID (đang chờ đồng bộ). Vui lòng thử lại sau.");
+            return;
+        }
+
+        if (!window.confirm("Bạn có chắc chắn muốn Check-In vé này? Hành động này sẽ đánh dấu vé đã sử dụng trên blockchain.")) {
+            return;
+        }
+
+        try {
+            await checkInTicketOnChain(tokenId);
+            alert("Check-In thành công! Vui lòng chờ vài phút để hệ thống cập nhật.");
+            // Reload to update local state
+            window.location.reload();
+        } catch (err) {
+            console.error("Check-In error:", err);
+            alert("Lỗi Check-In: " + (err.message || "Giao dịch thất bại"));
+        }
+    };
 
     useEffect(() => {
         if (authLoading) return;
@@ -87,19 +124,29 @@ export default function MyTickets() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {tickets.map((ticket) => (
                             <div key={ticket.TicketID} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition group">
-                                <div className="p-6">
-                                    <div className="flex justify-between items-start mb-4">
+                                {/* Event Image Header */}
+                                <div className="h-40 overflow-hidden relative">
+                                    <img 
+                                        src={cidToGatewayUrl(ticket.BannerURL || ticket.DetailURL)} 
+                                        alt={ticket.EventName}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-4">
                                         <span className="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider">
                                             Token ID: {ticket.TokenID}
                                         </span>
+                                    </div>
+                                </div>
+
+                                <div className="p-6">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h2 className="text-xl font-bold text-gray-900 line-clamp-1">{ticket.EventName || "Sự kiện"}</h2>
                                         {ticket.IsUsed && (
                                             <span className="bg-green-100 text-green-700 text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider">
                                                 Đã sử dụng
                                             </span>
                                         )}
                                     </div>
-                                    
-                                    <h2 className="text-xl font-bold text-gray-900 line-clamp-1">{ticket.EventName || "Sự kiện"}</h2>
                                     <p className="text-sm text-gray-500 mt-1 italic">
                                         {(() => {
                                             if (!ticket.EventDate) return "Thời gian chưa cập nhật";
@@ -126,12 +173,26 @@ export default function MyTickets() {
                                     </div>
 
                                     <div className="mt-6 grid grid-cols-2 gap-3">
-                                        <button className="py-2 text-sm font-bold border border-gray-200 rounded-xl hover:bg-gray-50 transition">
-                                            Chi tiết
-                                        </button>
-                                        <button className="py-2 text-sm font-bold bg-gray-900 text-white rounded-xl hover:bg-black transition">
-                                            Bán lại
-                                        </button>
+                                        {ticket.IsUsed ? (
+                                            <button disabled className="col-span-2 py-2 text-sm font-bold bg-gray-100 text-gray-400 rounded-xl cursor-not-allowed">
+                                                Đã sử dụng
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button 
+                                                    onClick={() => handleCheckIn(ticket.TicketID, ticket.TokenID)}
+                                                    className="py-2 text-sm font-bold bg-green-500 text-white rounded-xl hover:bg-green-600 transition"
+                                                >
+                                                    Check-In
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleRefund(ticket.TicketID, ticket.TokenID)}
+                                                    className="py-2 text-sm font-bold bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition"
+                                                >
+                                                    Hoàn vé
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

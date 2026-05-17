@@ -15,7 +15,10 @@ export default function EventCard({ e, loading = false }) {
     }
 
     return (
-        <div className="bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-100 h-full flex flex-col">
+        <Link 
+            to={e?.id != null ? `/event/${e.id}` : "#"}
+            className="bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-100 h-full flex flex-col cursor-pointer"
+        >
             <div className="relative aspect-video overflow-hidden">
                 <img
                     src={e?.detailImage || "/placeholder-event.jpg"}
@@ -48,12 +51,9 @@ export default function EventCard({ e, loading = false }) {
 
                 <div className="mt-6">
                     {e?.id != null ? (
-                        <Link 
-                            to={`/event/${e.id}`}
-                            className="block w-full text-center bg-zinc-900 text-white py-3 rounded-2xl font-bold text-sm hover:bg-black transition-colors active:scale-95"
-                        >
+                        <div className="block w-full text-center bg-zinc-900 text-white py-3 rounded-2xl font-bold text-sm group-hover:bg-black transition-colors active:scale-95">
                             Mua vé ngay
-                        </Link>
+                        </div>
                     ) : (
                         <button className="w-full bg-zinc-100 text-zinc-400 py-3 rounded-2xl font-bold text-sm" disabled>
                             Đang tải...
@@ -61,6 +61,6 @@ export default function EventCard({ e, loading = false }) {
                     )}
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }

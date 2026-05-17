@@ -16,6 +16,7 @@ model User {
   WalletAddress String?  @unique @map("WalletAddress") @db.VarChar(42)
   Nonce         String?  @map("Nonce") @db.VarChar(100)
   Role          String?  @default("user") @map("Role") @db.VarChar(20)
+  IsSuspended   Boolean  @default(false) @map("IsSuspended")
   CreatedAt     DateTime? @default(now()) @map("CreatedAt")
 
   CreatedEvents Event[]  @relation("EventCreator")
@@ -26,6 +27,7 @@ model User {
 
 model Event {
   EventID         Int        @id @default(autoincrement()) @map("EventID")
+  ContractEventID Int?       @unique @map("ContractEventID")
   EventName       String     @map("EventName") @db.VarChar(200)
   MetaURL         String?    @map("MetaURL")
   BannerURL       String?    @map("bannerurl")
@@ -40,6 +42,8 @@ model Event {
   CreatedBy       Int?       @map("CreatedBy")
   CreatedAt       DateTime?  @default(now()) @map("CreatedAt")
   IsCancelled     Boolean    @default(false) @map("IsCancelled")
+  IsHidden        Boolean    @default(false) @map("IsHidden")
+  IsFeatured      Boolean    @default(false) @map("IsFeatured")
 
   Creator     User?       @relation("EventCreator", fields: [CreatedBy], references: [UserID])
   TicketTypes TicketType[]
@@ -51,12 +55,14 @@ model Event {
 model Order {
   OrderID     Int       @id @default(autoincrement()) @map("OrderID")
   UserID      Int?      @map("UserID")
+  TicketTypeID Int?     @map("TicketTypeID")
   OrderDate   DateTime? @default(now()) @map("OrderDate")
-  TotalAmount Decimal?  @map("TotalAmount") @db.Decimal(18, 2)
+  TotalAmount Decimal?  @map("TotalAmount") @db.Decimal(78, 0)
   Status      String?   @map("Status") @db.VarChar(50)
   TxHash      String?   @map("TxHash") @db.VarChar(66)
 
   User    User?    @relation(fields: [UserID], references: [UserID])
+  TicketType TicketType? @relation(fields: [TicketTypeID], references: [TicketTypeID])
   Tickets Ticket[] @relation("OrderToTicket")
 
   @@map("Orders")
@@ -78,11 +84,12 @@ model TicketType {
   TicketTypeID Int      @id @default(autoincrement()) @map("TicketTypeID")
   EventID      Int?     @map("EventID")
   TypeName     String?  @map("TypeName") @db.VarChar(50)
-  Price        Decimal? @map("Price") @db.Decimal(18, 2)
+  Price        Decimal? @map("Price") @db.Decimal(78, 0)
   Quantity     Int?     @map("Quantity")
 
   Event   Event?   @relation(fields: [EventID], references: [EventID])
   Tickets Ticket[]
+  Orders  Order[]
 
   @@map("TicketTypes")
 }
@@ -115,4 +122,16 @@ model CheckIn {
   Ticket Ticket? @relation(fields: [TicketID], references: [TicketID])
 
   @@map("CheckIns")
+}
+
+model SystemAuditLog {
+  LogID       Int      @id @default(autoincrement()) @map("LogID")
+  AdminID     Int      @map("AdminID")
+  Action      String   @map("Action") @db.VarChar(255)
+  TargetType  String?  @map("TargetType") @db.VarChar(50) // e.g., 'User', 'Event'
+  TargetID    String?  @map("TargetID") @db.VarChar(100)
+  Details     String?  @map("Details") @db.Text
+  CreatedAt   DateTime @default(now()) @map("CreatedAt")
+
+  @@map("SystemAuditLogs")
 }

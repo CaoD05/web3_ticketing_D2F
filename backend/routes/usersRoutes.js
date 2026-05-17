@@ -4,6 +4,7 @@ const {
   getUserById,
   createUser,
   updateUserRole,
+  updateUserStatus,
   deleteUser,
   updateMe,
 } = require("../controllers/usersController");
@@ -19,6 +20,7 @@ router.get("/users", verifyToken, requireRole("admin"), getAllUsers);
 router.get("/users/:id", verifyToken, requireRole("admin"), getUserById);
 router.post("/users", verifyToken, requireRole("admin"), createUser);
 router.put("/users/:id/role", verifyToken, requireRole("admin"), updateUserRole);
+router.put("/users/:id/status", verifyToken, requireRole("admin"), updateUserStatus);
 router.delete("/users/:id", verifyToken, requireRole("admin"), deleteUser);
 
 module.exports = router;

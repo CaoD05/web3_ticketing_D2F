@@ -60,37 +60,28 @@ async function createOrder(req, res) {
     const unitPrice = ticketType.Price ? Number(ticketType.Price) : 0;
     const totalAmount = unitPrice * qty;
 
-    // Tạo Order + Tickets trong transaction
+    // Tạo Order (Idempotent by TxHash if provided)
     const result = await prisma.$transaction(async (tx) => {
+      // Check if order for this TxHash already exists
+      if (TxHash) {
+        const existing = await tx.order.findFirst({ where: { TxHash } });
+        if (existing) return { order: existing, tickets: [] };
+      }
+
       const order = await tx.order.create({
         data: {
           UserID: userId,
+          TicketTypeID: Number(TicketTypeID),
           TotalAmount: totalAmount,
-          Status: TxHash ? "confirmed" : "pending",
+          Status: "pending", // Always start as pending
+          TxHash: TxHash,
         },
       });
 
-      const tickets = [];
-      for (let i = 0; i < qty; i++) {
-        const ticket = await tx.ticket.create({
-          data: {
-            TicketTypeID: ticketType.TicketTypeID,
-            OrderID: order.OrderID,
-            OwnerWallet: ownerWallet,
-            TransactionHash: TxHash,
-            IsUsed: false,
-          },
-        });
-        tickets.push(ticket);
-      }
-
-      // Cập nhật TicketsSold của Event
-      await tx.event.update({
-        where: { EventID: ticketType.Event.EventID },
-        data: { TicketsSold: { increment: qty } },
-      });
-
-      return { order, tickets };
+      // We no longer create Ticket records here. 
+      // The Blockchain Listener will create them when it sees the TicketPurchased event.
+      
+      return { order, tickets: [] };
     });
 
     // Socket.io notification

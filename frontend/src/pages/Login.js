@@ -77,7 +77,16 @@ export default function Login() {
         }
     }, [handleGoogleResponse]);
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        login();
+    };
+
     const login = async () => {
+        if (!email || !password) {
+            alert("Vui lòng nhập đầy đủ email và mật khẩu.");
+            return;
+        }
         try {
             setIsLoading(true);
             const res = await api.post("/auth/login", {
@@ -118,10 +127,11 @@ export default function Login() {
                             </p>
                         </div>
 
-                        <div className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Email</label>
                                 <input
+                                    required
                                     type="email"
                                     placeholder="name@example.com"
                                     value={email}
@@ -134,6 +144,7 @@ export default function Login() {
                             <div>
                                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Password</label>
                                 <input
+                                    required
                                     type="password"
                                     placeholder="Your password"
                                     value={password}
@@ -158,21 +169,20 @@ export default function Login() {
                             <div className="mb-3">
                                 <button
                                     type="submit"
-                                    onClick={login}
                                     disabled={isLoading}
-                                    className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 disabled:bg-gray-400 px-2 py-1.5 rounded-md"
+                                    className="mb-3 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 disabled:bg-gray-400 px-6 py-3 rounded-2xl font-bold transition"
                                 >
                                     {isLoading ? 'Đang đăng nhập...' : 'Sign in'}
                                 </button>
 
                                 {/* Google Sign-In Button */}
-                                <div ref={googleBtnRef} className="flex justify-center w-full"></div>
+                                <div ref={googleBtnRef} className="flex justify-center w-full mt-4"></div>
                             </div>
-                        </div>
+                        </form>
 
                         <div className="mt-8 text-sm text-white/70">
                             Don’t have an account?{" "}
-                            <Link to="/auth/register" className="font-semibold text-yellow-400 hover:text-yellow-300">
+                            <Link to="/register" className="font-semibold text-yellow-400 hover:text-yellow-300">
                                 Sign up
                             </Link>
                         </div>
