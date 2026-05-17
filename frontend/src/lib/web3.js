@@ -200,8 +200,24 @@ export async function airdropTicketsOnChain(eventId, recipients) {
 export async function cancelEventOnChain(eventId) {
   try {
     const contract = await getContract();
-    const tx = await contract.cancelEvent(eventId, { gasLimit: 300000 });
-    await tx.wait();
+    const _eventId = window.BigInt(eventId.toString());
+    
+    console.log(`[Web3] Cancelling event ${_eventId} on-chain...`);
+    
+    // Explicitly estimate gas first to catch reverts with reason strings
+    try {
+        await contract.cancelEvent.estimateGas(_eventId);
+    } catch (estimateError) {
+        console.error("[Web3] Cancel preflight failed:", estimateError);
+        throw new Error(estimateError.reason || "Bạn không có quyền hủy sự kiện này hoặc sự kiện đã bị hủy.");
+    }
+
+    const tx = await contract.cancelEvent(_eventId, { gasLimit: 300000 });
+    console.log("[Web3] Transaction sent:", tx.hash);
+    
+    const receipt = await tx.wait();
+    if (receipt.status === 0) throw new Error("Giao dịch bị từ chối trên Blockchain.");
+    
     return tx.hash;
   } catch (error) {
     console.error("Cancel event error:", error);

@@ -21,6 +21,7 @@ export default function AdminDashboard() {
     const [users, setUsers] = useState([]);
     const [globalStats, setGlobalStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [cancellingId, setCancellingId] = useState(null);
 
     // Airdrop State
     const [showAirdropModal, setShowAirdropModal] = useState(false);
@@ -92,10 +93,12 @@ export default function AdminDashboard() {
     const handleCancelEvent = async (eventId, contractEventId) => {
         if (!window.confirm("Hủy sự kiện?")) return;
         try {
+            setCancellingId(eventId);
             if (contractEventId !== null) await cancelEventOnChain(contractEventId);
             await api.patch(`/events/${eventId}/cancel`);
             fetchAllEvents();
         } catch (err) { alert("Lỗi: " + err.message); }
+        finally { setCancellingId(null); }
     };
 
     const handleUpdateRole = async (userId, newRole) => {
@@ -216,21 +219,32 @@ export default function AdminDashboard() {
                                 <h3 className="text-lg font-bold">{event.title}</h3>
                                 <p className="text-gray-500 text-xs mt-1">{event.location} • {formatDate(event.date)}</p>
                                 <div className="mt-2 flex flex-wrap justify-center md:justify-start gap-2">
+                                    {event.IsCancelled && <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase">Đã hủy</span>}
                                     {event.IsFeatured && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">⭐ Nổi bật</span>}
                                     {event.IsHidden && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[8px] font-black uppercase">Đang ẩn</span>}
                                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[8px] font-black uppercase">{event.TicketsSold}/{event.TotalTickets} vé</span>
                                 </div>
                             </div>
                             <div className="flex flex-wrap justify-center gap-3">
-                                <button 
-                                    onClick={() => { setAirdropEventId(event.contractEventId); setShowAirdropModal(true); }}
-                                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase hover:bg-blue-100"
-                                >
-                                    Airdrop
-                                </button>
-                                <button onClick={() => handleToggleFeatured(event.id, event.IsFeatured)} className="px-4 py-2 bg-gray-50 text-gray-500 rounded-xl text-[10px] font-black uppercase">{event.IsFeatured ? "Gỡ nổi bật" : "Nổi bật"}</button>
-                                <button onClick={() => handleToggleVisibility(event.id, event.IsHidden)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${event.IsHidden ? "bg-green-100 text-green-700" : "bg-gray-50 text-gray-500"}`}>{event.IsHidden ? "Hiện" : "Ẩn"}</button>
-                                {event.Status === 'Active' && <button onClick={() => handleCancelEvent(event.id, event.contractEventId)} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase">Hủy</button>}
+                                {!event.IsCancelled && (
+                                    <>
+                                        <button 
+                                            onClick={() => { setAirdropEventId(event.contractEventId); setShowAirdropModal(true); }}
+                                            className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase hover:bg-blue-100"
+                                        >
+                                            Airdrop
+                                        </button>
+                                        <button onClick={() => handleToggleFeatured(event.id, event.IsFeatured)} className="px-4 py-2 bg-gray-50 text-gray-500 rounded-xl text-[10px] font-black uppercase">{event.IsFeatured ? "Gỡ nổi bật" : "Nổi bật"}</button>
+                                        <button onClick={() => handleToggleVisibility(event.id, event.IsHidden)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${event.IsHidden ? "bg-green-100 text-green-700" : "bg-gray-50 text-gray-500"}`}>{event.IsHidden ? "Hiện" : "Ẩn"}</button>
+                                        <button 
+                                            onClick={() => handleCancelEvent(event.id, event.contractEventId)} 
+                                            disabled={cancellingId === event.id}
+                                            className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase disabled:opacity-50"
+                                        >
+                                            {cancellingId === event.id ? "Đang hủy..." : "Hủy"}
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     ))}

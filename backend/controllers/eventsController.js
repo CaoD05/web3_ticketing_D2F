@@ -156,9 +156,14 @@ async function getAllEvents(req, res) {
     const now = new Date();
     const formattedEvents = await Promise.all(
       events.map(async (event) => {
+        let status = (event.EventDate && new Date(event.EventDate) > now) ? 'Active' : 'Ended';
+        if (event.IsCancelled) {
+          status = 'Cancelled';
+        }
+
         const baseEvent = {
           ...event,
-          Status: (event.EventDate && new Date(event.EventDate) > now) ? 'Active' : 'Ended'
+          Status: status
         };
 
         const withPrice = await attachOnChainPrice(contract, baseEvent);
@@ -291,9 +296,14 @@ async function getEventById(req, res) {
     }
 
     const now = new Date();
+    let status = (event.EventDate && new Date(event.EventDate) > now) ? 'Active' : 'Ended';
+    if (event.IsCancelled) {
+      status = 'Cancelled';
+    }
+
     const eventWithStatus = {
       ...event,
-      Status: (event.EventDate && new Date(event.EventDate) > now) ? 'Active' : 'Ended'
+      Status: status
     };
 
     const enrichedEvent = await attachOnChainPrice(contract, eventWithStatus);
@@ -418,6 +428,11 @@ async function cancelEvent(req, res) {
     const existing = await prisma.event.findUnique({ where: { EventID: eventId } });
 
     if (!existing) return res.status(404).json({ ok: false, message: "Event not found" });
+
+    // Ownership check
+    if (req.user.role !== 'admin' && existing.CreatedBy !== req.user.userId) {
+      return res.status(403).json({ ok: false, message: "Bạn không có quyền hủy sự kiện này" });
+    }
 
     const newName = existing.EventName.startsWith("[CANCELLED]") ? existing.EventName : `[CANCELLED] ${existing.EventName}`;
     const cancelled = await prisma.event.update({

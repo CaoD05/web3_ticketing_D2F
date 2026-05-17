@@ -35,8 +35,11 @@ export default function Home() {
     }, []);
 
     const filteredEvents = useMemo(() => {
-        if (selectedCategory === "All") return events;
-        return events.filter((event) => {
+        const publicEvents = events.filter(e => !e.IsHidden && !e.IsCancelled);
+        
+        if (selectedCategory === "All") return publicEvents;
+        
+        return publicEvents.filter((event) => {
             const category = event.category || event.type || "Other";
             return category.toLowerCase() === selectedCategory.toLowerCase();
         });

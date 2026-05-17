@@ -28,8 +28,10 @@ export default function Hero() {
     api.get("/events")
       .then(res => {
         const allEvents = (res.data?.data || []).map(normalizeEvent);
+        const publicEvents = allEvents.filter(e => !e.IsHidden && !e.IsCancelled);
+        
         // Shuffle and take up to 5
-        const shuffled = [...allEvents].sort(() => 0.5 - Math.random()).slice(0, 5);
+        const shuffled = [...publicEvents].sort(() => 0.5 - Math.random()).slice(0, 5);
         setEvents(shuffled);
       })
       .catch(err => {

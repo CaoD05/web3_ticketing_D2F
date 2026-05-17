@@ -40,7 +40,7 @@ export default function Events() {
     }, []);
 
     const filteredEvents = useMemo(() => {
-        let result = events;
+        let result = events.filter(e => !e.IsHidden && !e.IsCancelled);
 
         // Filter by category
         if (selectedCategory !== "All") {

@@ -111,5 +111,6 @@ export default function normalizeEvent(event) {
     CreatedBy: event.CreatedBy ?? event.createdby ?? null,
     IsHidden: !!(event.IsHidden ?? event.ishidden ?? false),
     IsFeatured: !!(event.IsFeatured ?? event.isfeatured ?? false),
+    IsCancelled: !!(event.IsCancelled ?? event.iscancelled ?? false),
   };
 }

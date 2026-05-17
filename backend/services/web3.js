@@ -330,6 +330,29 @@ async function persistResaleSold(ticketId, from, to, price) {
   } catch (e) { console.error("[Web3] ResaleSold error:", e.message); }
 }
 
+async function persistEventCancelled(eventId) {
+  try {
+    const eventIdNum = Number(eventId);
+    const event = await prisma.event.findUnique({
+      where: { ContractEventID: eventIdNum }
+    });
+
+    if (!event) {
+      console.warn(`[Web3] Received cancellation for unknown on-chain event ${eventIdNum}`);
+      return;
+    }
+
+    if (!event.IsCancelled) {
+      const newName = event.EventName.startsWith("[CANCELLED]") ? event.EventName : `[CANCELLED] ${event.EventName}`;
+      await prisma.event.update({
+        where: { EventID: event.EventID },
+        data: { IsCancelled: true, EventName: newName }
+      });
+      console.log(`[Web3] Event ${eventIdNum} (DB ID: ${event.EventID}) marked as cancelled.`);
+    }
+  } catch (e) { console.error("[Web3] EventCancelled error:", e.message); }
+}
+
 async function syncHistorical(contract) {
   const latest = await getProvider().getBlockNumber();
   const from = getFromBlockForSync();
@@ -343,6 +366,7 @@ async function syncHistorical(contract) {
     
     const events = [
       { filter: contract.filters.EventCreated(), handler: async (args, tx) => persistEventCreated(contract, ...args, tx) },
+      { filter: contract.filters.EventCancelled(), handler: async (args) => persistEventCancelled(...args) },
       { filter: contract.filters.TicketPurchased(), handler: async (args, tx) => persistTicketPurchased(...args, tx) },
       { filter: contract.filters.TicketUsed(), handler: async (args) => persistTicketUsed(...args) },
       { filter: contract.filters.TicketTransferred(), handler: async (args) => persistTicketTransferred(...args) },
@@ -370,6 +394,11 @@ async function listenToBlockchain(io) {
 
   contract.on("EventCreated", (eventId, name, price, totalTickets, organizer, metaURL, event) => {
     persistEventCreated(contract, eventId, name, price, totalTickets, organizer, metaURL, event.log.transactionHash);
+    writeSyncState(event.log.blockNumber);
+  });
+
+  contract.on("EventCancelled", (eventId, event) => {
+    persistEventCancelled(eventId);
     writeSyncState(event.log.blockNumber);
   });
 

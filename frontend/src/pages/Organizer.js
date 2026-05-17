@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { createEventOnChain, getContract } from "../lib/web3";
+import { createEventOnChain, getContract, cancelEventOnChain } from "../lib/web3";
 import { ethers } from "ethers";
 import normalizeEvent from "../lib/normalizeEvent";
 
@@ -29,6 +29,7 @@ export default function Organizer() {
     
     // Status State
     const [creating, setCreating] = useState(false);
+    const [cancellingId, setCancellingId] = useState(null);
     const [error, setError] = useState("");
 
     const fetchMyEvents = useCallback(async () => {
@@ -83,6 +84,30 @@ export default function Organizer() {
         } catch (err) {
             console.error("Toggle visibility error:", err);
             alert("Không thể thay đổi trạng thái hiển thị");
+        }
+    };
+
+    const handleCancelEvent = async (eventId, contractEventId) => {
+        if (!window.confirm("Bạn có chắc chắn muốn hủy sự kiện này? Thao tác này sẽ được ghi nhận trên Blockchain.")) return;
+        
+        try {
+            setCancellingId(eventId);
+            // 1. Blockchain call if it has a contract ID
+            if (contractEventId !== null && contractEventId !== undefined) {
+                console.log(`[Web3] Cancelling event ${contractEventId} on-chain...`);
+                await cancelEventOnChain(contractEventId);
+            }
+
+            // 2. API call to update DB
+            await api.patch(`/events/${eventId}/cancel`);
+            
+            alert("Đã hủy sự kiện thành công!");
+            fetchMyEvents();
+        } catch (err) {
+            console.error("Cancel event error:", err);
+            alert("Lỗi khi hủy sự kiện: " + (err.response?.data?.message || err.message));
+        } finally {
+            setCancellingId(null);
         }
     };
 
@@ -261,6 +286,7 @@ export default function Organizer() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3">
                                         <h3 className="text-xl font-black">{event.title}</h3>
+                                        {event.IsCancelled && <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">Đã hủy</span>}
                                         {event.IsHidden && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[8px] font-black uppercase">Đang ẩn</span>}
                                         {event.IsFeatured && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">⭐ Nổi bật</span>}
                                     </div>
@@ -273,8 +299,18 @@ export default function Organizer() {
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    <button onClick={() => handleToggleVisibility(event.id, event.IsHidden)} className="px-6 py-2 bg-gray-50 rounded-xl text-xs font-bold">{event.IsHidden ? "Hiện" : "Ẩn"}</button>
-                                    <button className="px-6 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold">Hủy</button>
+                                    {!event.IsCancelled && (
+                                        <>
+                                            <button onClick={() => handleToggleVisibility(event.id, event.IsHidden)} className="px-6 py-2 bg-gray-50 rounded-xl text-xs font-bold">{event.IsHidden ? "Hiện" : "Ẩn"}</button>
+                                            <button 
+                                                onClick={() => handleCancelEvent(event.id, event.contractEventId)}
+                                                disabled={cancellingId === event.id}
+                                                className="px-6 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition disabled:opacity-50"
+                                            >
+                                                {cancellingId === event.id ? "Đang hủy..." : "Hủy"}
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         ))
