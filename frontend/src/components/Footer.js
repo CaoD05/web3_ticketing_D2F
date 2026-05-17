@@ -31,13 +31,13 @@ export default function Footer() {
                         <div className="flex flex-col flex-grow space-y-4">
                             <div className="font-semibold text-sm text-[#98a2b3]">ABOUT US</div>
                             <div className="flex flex-col space-y-3">
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">About Us</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Operational Regulations</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Information Privacy Policy</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Payment Privacy Policy</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Payment Method</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Our Partners</Link>
-                                <Link to="/" className="text-base text-white hover:text-yellow-400">Terms of Use</Link>
+                                <Link to="/about" className="text-base text-white hover:text-yellow-400">About Us</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Operational Regulations</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Information Privacy Policy</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Payment Privacy Policy</Link>
+                                <Link to="/payment-method" className="text-base text-white hover:text-yellow-400">Payment Method</Link>
+                                <Link to="/about" className="text-base text-white hover:text-yellow-400">Our Partners</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Terms of Use</Link>
                             </div>
                         </div>
 

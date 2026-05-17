@@ -6,6 +6,7 @@ const {
   connectWallet,
   googleAuth,
   getNonce,
+  changePassword,
 } = require("../controllers/authController");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -22,5 +23,6 @@ router.get("/auth/nonce", verifyToken, getNonce);
 router.put("/auth/connect-wallet", verifyToken, connectWallet);
 router.put("/auth/link-wallet", verifyToken, connectWallet);
 router.post("/auth/connect-wallet", verifyToken, connectWallet);
+router.put("/auth/change-password", verifyToken, changePassword);
 
 module.exports = router;

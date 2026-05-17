@@ -94,8 +94,9 @@ function AuthLinks() {
                         type="button"
                         onClick={() => {
                             setDropdownOpen(false);
-                            logout();
-                            navigate("/");
+                            // Navigate first, then logout
+                            navigate("/", { replace: true });
+                            setTimeout(() => logout(), 0);
                         }}
                         className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition border-t border-white/5"
                     >

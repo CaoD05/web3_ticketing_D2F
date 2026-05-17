@@ -292,11 +292,31 @@ async function persistTicketPurchased(ticketId, eventId, buyer, txHash) {
 
 async function persistTicketUsed(ticketId) {
   try {
-    await prisma.ticket.update({
-      where: { TokenID: ticketId.toString() },
-      data: { IsUsed: true }
+    const tokenId = ticketId.toString();
+    const ticket = await prisma.ticket.findUnique({
+      where: { TokenID: tokenId }
     });
-    console.log(`[Web3] Ticket ${ticketId} marked as used.`);
+
+    if (ticket) {
+      await prisma.ticket.update({
+        where: { TicketID: ticket.TicketID },
+        data: { IsUsed: true }
+      });
+
+      // Also create a CheckIn record if it doesn't exist
+      const existingCheckIn = await prisma.checkIn.findUnique({
+        where: { TicketID: ticket.TicketID }
+      });
+
+      if (!existingCheckIn) {
+        await prisma.checkIn.create({
+          data: { TicketID: ticket.TicketID }
+        });
+      }
+      console.log(`[Web3] Ticket ${tokenId} marked as used and CheckIn record created.`);
+    } else {
+      console.warn(`[Web3] TicketUsed: TokenID ${tokenId} not found in DB.`);
+    }
   } catch (e) { console.error("[Web3] TicketUsed error:", e.message); }
 }
 
@@ -369,6 +389,7 @@ async function syncHistorical(contract) {
       { filter: contract.filters.EventCancelled(), handler: async (args) => persistEventCancelled(...args) },
       { filter: contract.filters.TicketPurchased(), handler: async (args, tx) => persistTicketPurchased(...args, tx) },
       { filter: contract.filters.TicketUsed(), handler: async (args) => persistTicketUsed(...args) },
+      { filter: contract.filters.TicketVerified(), handler: async (args) => persistTicketUsed(...args) },
       { filter: contract.filters.TicketTransferred(), handler: async (args) => persistTicketTransferred(...args) },
       { filter: contract.filters.ResaleListed(), handler: async (args) => persistResaleListed(...args) },
       { filter: contract.filters.ResaleSold(), handler: async (args) => persistResaleSold(...args) }
@@ -409,6 +430,11 @@ async function listenToBlockchain(io) {
   });
 
   contract.on("TicketUsed", (ticketId, event) => {
+    persistTicketUsed(ticketId);
+    writeSyncState(event.log.blockNumber);
+  });
+
+  contract.on("TicketVerified", (ticketId, event) => {
     persistTicketUsed(ticketId);
     writeSyncState(event.log.blockNumber);
   });

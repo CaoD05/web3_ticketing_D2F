@@ -2,7 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { cancelEventOnChain, airdropTicketsOnChain } from "../lib/web3";
+import { 
+    cancelEventOnChain, 
+    airdropTicketsOnChain,
+    grantOrganizerRoleOnChain,
+    revokeOrganizerRoleOnChain,
+    grantAdminRoleOnChain,
+    revokeAdminRoleOnChain
+} from "../lib/web3";
 import normalizeEvent from "../lib/normalizeEvent";
 import { ethers } from "ethers";
 
@@ -22,6 +29,7 @@ export default function AdminDashboard() {
     const [globalStats, setGlobalStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [cancellingId, setCancellingId] = useState(null);
+    const [updatingRoleId, setUpdatingRoleId] = useState(null);
 
     // Airdrop State
     const [showAirdropModal, setShowAirdropModal] = useState(false);
@@ -101,12 +109,42 @@ export default function AdminDashboard() {
         finally { setCancellingId(null); }
     };
 
-    const handleUpdateRole = async (userId, newRole) => {
+    const handleUpdateRole = async (userObj, newRole) => {
+        const userId = userObj.UserID;
+        const walletAddress = userObj.WalletAddress;
+        const oldRole = userObj.Role;
+
         if (userId === currentUser.userId) return;
+        
+        const confirmMsg = `Bạn có muốn thay đổi vai trò của ${userObj.FullName} từ ${oldRole} sang ${newRole}? \n\nLưu ý: Nếu người dùng có ví, hệ thống sẽ yêu cầu ký giao dịch Blockchain để đồng bộ quyền.`;
+        if (!window.confirm(confirmMsg)) return;
+
+        setUpdatingRoleId(userId);
         try {
+            // 1. Blockchain Sync (if wallet exists)
+            if (walletAddress && walletAddress.startsWith("0x")) {
+                console.log(`[Admin] Syncing role change to blockchain for ${walletAddress}...`);
+                
+                // Revoke old permissions if necessary
+                if (oldRole === 'organizer') await revokeOrganizerRoleOnChain(walletAddress);
+                if (oldRole === 'admin') await revokeAdminRoleOnChain(walletAddress);
+
+                // Grant new permissions
+                if (newRole === 'organizer') await grantOrganizerRoleOnChain(walletAddress);
+                if (newRole === 'admin') await grantAdminRoleOnChain(walletAddress);
+            }
+
+            // 2. Database Update
             await api.put(`/users/${userId}/role`, { Role: newRole });
+            
+            alert("Cập nhật vai trò và đồng bộ Blockchain thành công!");
             fetchAllUsers();
-        } catch (err) { alert("Lỗi role"); }
+        } catch (err) { 
+            console.error("Role update error:", err);
+            alert("Lỗi cập nhật vai trò: " + (err.message || "Giao dịch thất bại")); 
+        } finally {
+            setUpdatingRoleId(null);
+        }
     };
 
     const handleToggleSuspension = async (userId, currentSuspended) => {
@@ -143,6 +181,10 @@ export default function AdminDashboard() {
 
     if (authLoading || loading) {
         return <div className="p-20 text-center font-bold text-gray-400 uppercase tracking-widest animate-pulse">Đang tải...</div>;
+    }
+
+    if (!currentUser) {
+        return null;
     }
 
     const formattedRevenue = globalStats?.totalRevenue 
@@ -277,13 +319,21 @@ export default function AdminDashboard() {
                                         <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${u.Role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{u.Role}</span>
                                     </td>
                                     <td className="px-8 py-6 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <select value={u.Role} disabled={u.UserID === currentUser.userId} onChange={(e) => handleUpdateRole(u.UserID, e.target.value)} className="bg-gray-50 text-[10px] font-bold border-none rounded-lg p-1">
+                                        <div className="flex justify-end gap-2 items-center">
+                                            {updatingRoleId === u.UserID && (
+                                                <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                                            )}
+                                            <select 
+                                                value={u.Role} 
+                                                disabled={u.UserID === currentUser.userId || updatingRoleId === u.UserID} 
+                                                onChange={(e) => handleUpdateRole(u, e.target.value)} 
+                                                className="bg-gray-50 text-[10px] font-bold border-none rounded-lg p-1 disabled:opacity-50"
+                                            >
                                                 <option value="user">User</option>
                                                 <option value="organizer">Organizer</option>
                                                 <option value="admin">Admin</option>
                                             </select>
-                                            <button onClick={() => handleToggleSuspension(u.UserID, u.IsSuspended)} disabled={u.UserID === currentUser.userId} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${u.IsSuspended ? 'text-green-600' : 'text-red-600'}`}>
+                                            <button onClick={() => handleToggleSuspension(u.UserID, u.IsSuspended)} disabled={u.UserID === currentUser.userId || updatingRoleId === u.UserID} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${u.IsSuspended ? 'text-green-600' : 'text-red-600'} disabled:opacity-50`}>
                                                 {u.IsSuspended ? 'Unsuspend' : 'Suspend'}
                                             </button>
                                         </div>

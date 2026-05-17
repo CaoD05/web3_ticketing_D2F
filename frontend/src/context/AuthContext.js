@@ -36,9 +36,10 @@ export function AuthProvider({ children }) {
         setUser(userData);
     };
 
-    const logout = () => {
+    const logout = (callback) => {
         clearAuthSession();
         setUser(null);
+        if (callback) callback();
     };
 
     return (

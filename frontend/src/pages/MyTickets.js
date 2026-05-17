@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { ethers } from "ethers";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { checkInTicketOnChain, refundTicketOnChain } from "../lib/web3";
+import { checkInTicketOnChain, refundTicketOnChain, getTicketOwnerOnChain } from "../lib/web3";
 import { cidToGatewayUrl } from "../lib/ipfs";
 
 export default function MyTickets() {
@@ -12,8 +13,14 @@ export default function MyTickets() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const handleRefund = async (ticketId, tokenId) => {
+    const handleRefund = async (ticketId, tokenId, ownerWallet) => {
         if (!tokenId) return alert("Vé chưa đồng bộ.");
+        
+        // Ownership check
+        if (user?.walletAddress?.toLowerCase() !== ownerWallet?.toLowerCase()) {
+            return alert(`Sai ví: Vui lòng chuyển sang ví ${ownerWallet} để hoàn tiền.`);
+        }
+
         if (!window.confirm("Bạn muốn trả vé? Bạn sẽ nhận lại 80% giá vé ban đầu và vé này sẽ bị hủy.")) return;
 
         try {
@@ -26,24 +33,49 @@ export default function MyTickets() {
     };
 
 
-    const handleCheckIn = async (ticketId, tokenId) => {
+    const handleCheckIn = async (ticketId, tokenId, ownerWallet) => {
         if (!tokenId) {
             alert("Vé này chưa có TokenID (đang chờ đồng bộ). Vui lòng thử lại sau.");
             return;
         }
 
-        if (!window.confirm("Bạn có chắc chắn muốn Check-In vé này? Hành động này sẽ đánh dấu vé đã sử dụng trên blockchain.")) {
-            return;
-        }
-
         try {
+            if (!window.ethereum) throw new Error("MetaMask not found");
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const activeWallet = await signer.getAddress();
+
+            console.log(`[Diagnostic] Token ID: ${tokenId}`);
+            console.log(`[Diagnostic] Active Wallet: ${activeWallet}`);
+
+            // Fetch REAL owner from blockchain
+            const onChainOwner = await getTicketOwnerOnChain(tokenId);
+            console.log(`[Diagnostic] On-Chain Owner: ${onChainOwner}`);
+
+            if (!onChainOwner) {
+                return alert("Lỗi: Không tìm thấy thông tin sở hữu vé trên Blockchain. Có thể Token ID không tồn tại.");
+            }
+
+            if (activeWallet.toLowerCase() !== onChainOwner.toLowerCase()) {
+                return alert(`Lỗi sở hữu (Blockchain)! \n\nBlockchain xác nhận chủ sở hữu vé này là:\n${onChainOwner}\n\nVí hiện tại của bạn là:\n${activeWallet}\n\nVui lòng chọn đúng ví trên MetaMask.`);
+            }
+
+            if (!window.confirm("Bạn có chắc chắn muốn Check-In vé này? Hành động này sẽ đánh dấu vé đã sử dụng trên blockchain.")) {
+                return;
+            }
+
             await checkInTicketOnChain(tokenId);
-            alert("Check-In thành công! Vui lòng chờ vài phút để hệ thống cập nhật.");
-            // Reload to update local state
+            alert("Check-In thành công!");
             window.location.reload();
         } catch (err) {
             console.error("Check-In error:", err);
-            alert("Lỗi Check-In: " + (err.message || "Giao dịch thất bại"));
+            // Handle specific "Not owner" from preflight if it still happens
+            const msg = err.message || "";
+            if (msg.includes("Not owner")) {
+                alert("Lỗi Check-In: Bạn không phải chủ sở hữu vé này trên Blockchain.");
+            } else {
+                alert("Lỗi Check-In: " + msg);
+            }
         }
     };
 
@@ -80,6 +112,10 @@ export default function MyTickets() {
                 <div className="text-gray-600 text-lg">Đang tải vé của bạn...</div>
             </div>
         );
+    }
+
+    if (!user) {
+        return null; // Let useEffect handle navigation
     }
 
     if (!user.walletAddress) {
@@ -147,6 +183,13 @@ export default function MyTickets() {
                                             </span>
                                         )}
                                     </div>
+                                    
+                                    {user?.walletAddress && ticket.OwnerWallet && user.walletAddress.toLowerCase() !== ticket.OwnerWallet.toLowerCase() && (
+                                        <div className="bg-amber-50 text-amber-700 text-[10px] font-bold p-2 rounded-lg mb-2 border border-amber-100">
+                                            ⚠️ Sai ví: Vui lòng dùng ví {ticket.OwnerWallet.substring(0, 6)}...{ticket.OwnerWallet.substring(38)}
+                                        </div>
+                                    )}
+
                                     <p className="text-sm text-gray-500 mt-1 italic">
                                         {(() => {
                                             if (!ticket.EventDate) return "Thời gian chưa cập nhật";
@@ -179,14 +222,29 @@ export default function MyTickets() {
                                             </button>
                                         ) : (
                                             <>
+                                                {(() => {
+                                                    const now = new Date();
+                                                    const eventDate = new Date(ticket.EventDate);
+                                                    const checkInWindow = new Date(eventDate.getTime() - 24 * 60 * 60 * 1000);
+                                                    const isTooEarly = now < checkInWindow;
+
+                                                    return (
+                                                        <button 
+                                                            onClick={() => handleCheckIn(ticket.TicketID, ticket.TokenID, ticket.OwnerWallet)}
+                                                            disabled={isTooEarly}
+                                                            title={isTooEarly ? "Bạn chỉ có thể Check-In trong vòng 24 giờ trước khi sự kiện bắt đầu." : ""}
+                                                            className={`py-2 text-sm font-bold rounded-xl transition ${
+                                                                isTooEarly 
+                                                                ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                                                                : "bg-green-500 text-white hover:bg-green-600"
+                                                            }`}
+                                                        >
+                                                            {isTooEarly ? "Chưa đến giờ" : "Check-In"}
+                                                        </button>
+                                                    );
+                                                })()}
                                                 <button 
-                                                    onClick={() => handleCheckIn(ticket.TicketID, ticket.TokenID)}
-                                                    className="py-2 text-sm font-bold bg-green-500 text-white rounded-xl hover:bg-green-600 transition"
-                                                >
-                                                    Check-In
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleRefund(ticket.TicketID, ticket.TokenID)}
+                                                    onClick={() => handleRefund(ticket.TicketID, ticket.TokenID, ticket.OwnerWallet)}
                                                     className="py-2 text-sm font-bold bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition"
                                                 >
                                                     Hoàn vé

@@ -523,4 +523,62 @@ async function getMe(req, res) {
   }
 }
 
-module.exports = { login, register, googleAuth, connectWallet, getNonce, getMe };
+async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        ok: false,
+        message: "Mật khẩu hiện tại và mật khẩu mới là bắt buộc",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        ok: false,
+        message: "Mật khẩu mới phải có ít nhất 8 ký tự",
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { UserID: req.user.userId },
+      select: {
+        UserID: true,
+        PasswordHash: true,
+      },
+    });
+
+    if (!user || !user.PasswordHash) {
+      return res.status(400).json({
+        ok: false,
+        message: "Người dùng không có mật khẩu (có thể đăng nhập bằng Google)",
+      });
+    }
+
+    if (!verifyPassword(currentPassword, user.PasswordHash)) {
+      return res.status(401).json({
+        ok: false,
+        message: "Mật khẩu hiện tại không đúng",
+      });
+    }
+
+    await prisma.user.update({
+      where: { UserID: user.UserID },
+      data: { PasswordHash: hashPassword(newPassword) },
+    });
+
+    return res.status(200).json({
+      ok: true,
+      message: "Đổi mật khẩu thành công",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "Lỗi đổi mật khẩu",
+      error: error.message,
+    });
+  }
+}
+
+module.exports = { login, register, googleAuth, connectWallet, getNonce, getMe, changePassword };

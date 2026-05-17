@@ -166,6 +166,10 @@ export default function Profile() {
         );
     }
 
+    if (!user) {
+        return null;
+    }
+
     return (
         <div className="bg-gray-100 min-h-screen p-10">
             <div className="max-w-2xl mx-auto">

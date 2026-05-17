@@ -29,8 +29,6 @@ export default function EventDetail() {
     const { user } = useAuth();
     const [event, setEvent] = useState(null);
     const [ipfsData, setIpfsData] = useState(null);
-    const [ipfsLoading, setIpfsLoading] = useState(false);
-    const [ipfsError, setIpfsError] = useState(null);
     const [buying, setBuying] = useState(false);
     const [buyError, setBuyError] = useState(null);
 
@@ -48,23 +46,15 @@ export default function EventDetail() {
             return;
         }
 
-        setIpfsLoading(true);
-        setIpfsError(null);
-
         (async () => {
             try {
                 const metadata = await fetchIPFSMetadata(event.metaURL);
                 if (metadata) {
                     const parsed = parseEventMetadata(metadata);
                     setIpfsData(parsed);
-                } else {
-                    setIpfsError("Không thể tải dữ liệu từ IPFS");
                 }
             } catch (err) {
                 console.error("IPFS fetch error:", err);
-                setIpfsError("Lỗi khi tải dữ liệu từ IPFS");
-            } finally {
-                setIpfsLoading(false);
             }
         })();
     }, [event?.metaURL]);
@@ -123,7 +113,27 @@ export default function EventDetail() {
             navigate("/my-tickets");
         } catch (err) {
             console.error("Purchase error:", err);
-            setBuyError(err.response?.data?.message || err.message || "Giao dịch thất bại");
+            
+            // Clean up the error message for the UI
+            let cleanMessage = "Giao dịch thất bại. Vui lòng thử lại.";
+            const rawMessage = err.response?.data?.message || err.message || "";
+            
+            if (rawMessage.includes("Limit reached")) {
+                cleanMessage = "Bạn đã đạt giới hạn số lượng vé có thể mua cho sự kiện này.";
+            } else if (rawMessage.includes("Cooldown")) {
+                cleanMessage = "Vui lòng đợi một lát trước khi mua thêm vé (chống đầu cơ).";
+            } else if (rawMessage.includes("Sold out")) {
+                cleanMessage = "Sự kiện đã hết vé.";
+            } else if (rawMessage.includes("insufficient funds") || rawMessage.includes("gas required exceeds allowance")) {
+                cleanMessage = "Ví của bạn không đủ ROSE để thanh toán vé và phí Gas.";
+            } else if (rawMessage.includes("user rejected")) {
+                cleanMessage = "Bạn đã từ chối giao dịch trên MetaMask.";
+            } else if (rawMessage.length < 100) {
+                // If it's a short, readable message from our backend or web3 lib
+                cleanMessage = rawMessage;
+            }
+
+            setBuyError(cleanMessage);
         } finally {
             setBuying(false);
         }
@@ -152,10 +162,6 @@ export default function EventDetail() {
         event.bannerImage || 
         ipfsData?.image || 
         FALLBACK_EVENT_IMAGE;
-
-    const bannerImage = 
-        event.bannerImage || 
-        detailImage;
 
     const displayPriceEth = event.priceEth || ipfsData?.price || null;
 
@@ -222,17 +228,14 @@ export default function EventDetail() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Giá vé</p>
-                                    <p className="text-3xl font-black text-red-600 italic">TEST</p>
+                                        <p className="text-3xl font-black text-red-600">
+                                            {displayPriceEth ? `${displayPriceEth} ROSE` : "Miễn phí"}
+                                        </p>
                                     </div>
 
-                                    {/* Ticket Availability: Total - Used */}
-                                    <div className="mt-4">
-                                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Ticket Availability</p>
-                                    <p className="text-sm font-bold text-gray-800">{availableTickets} <span className="text-xs text-gray-400 font-normal">vé</span></p>
-                                    </div>
                                     <div className="text-right">
                                         <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Sẵn có</p>
-                                        <p className="text-2xl font-black text-gray-900">{event.remainingTickets ?? event.totalTickets} <span className="text-xs text-gray-400 font-normal">vé</span></p>
+                                        <p className="text-2xl font-black text-gray-900">{availableTickets} <span className="text-xs text-gray-400 font-normal">vé</span></p>
                                     </div>
                                 </div>
 

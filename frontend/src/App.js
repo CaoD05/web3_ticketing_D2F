@@ -10,6 +10,9 @@ import Profile from "./pages/Profile";
 import Contact from "./pages/Contact";
 import Organizer from "./pages/Organizer";
 import AdminDashboard from "./pages/AdminDashboard";
+import AboutUs from "./pages/AboutUs";
+import PaymentMethod from "./pages/PaymentMethod";
+import TermsOfUse from "./pages/TermsOfUse";
 import AdminLayout from "./layouts/AdminLayout";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
@@ -41,6 +44,9 @@ function App() {
             <Route path="my-tickets" element={<MyTickets />} />
             <Route path="profile" element={<Profile />} />
             <Route path="organizer" element={<Organizer />} />
+            <Route path="about" element={<AboutUs />} />
+            <Route path="payment-method" element={<PaymentMethod />} />
+            <Route path="terms" element={<TermsOfUse />} />
           </Route>
         </Routes>
       </BrowserRouter>

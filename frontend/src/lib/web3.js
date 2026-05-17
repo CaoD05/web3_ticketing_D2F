@@ -146,22 +146,33 @@ export async function checkInTicketOnChain(ticketId) {
     const signer = await getSapphireSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS, TicketingABI, signer);
     const _ticketId = window.BigInt(ticketId.toString());
+    const userAddr = await signer.getAddress();
 
-    // PREFLIGHT DRY-RUN
-    try {
-        const from = await signer.getAddress();
-        await contract.useTicket.staticCall(_ticketId, { from });
-    } catch (preflightError) {
-        const reason = preflightError.reason || preflightError.message || "Lỗi điều kiện Check-In";
-        throw new Error(`Không thể Check-In: ${reason}`);
-    }
+    console.log(`[Web3] Direct Check-In Attempt: Ticket ${_ticketId}, Signer ${userAddr}`);
 
-    const tx = await contract.useTicket(_ticketId, { gasLimit: 300000 });
-    await tx.wait();
+    // Bypassing staticCall/estimateGas as they are unreliable on Sapphire for msg.sender-dependent checks
+    // We let MetaMask handle the confirmation and the network handle the revert if it's truly unauthorized
+    
+    const tx = await contract.useTicket(_ticketId, { 
+        gasLimit: 400000 // Slightly higher buffer
+    });
+    
+    console.log("[Web3] Check-In Transaction Sent:", tx.hash);
+    
+    const receipt = await tx.wait();
+    if (receipt.status === 0) throw new Error("Giao dịch thất bại (Blockchain Revert).");
+    
     return tx.hash;
   } catch (error) {
     console.error("Use ticket error:", error);
-    throw error;
+    
+    // Attempt to extract a cleaner message
+    let msg = error.message;
+    if (error.reason) msg = error.reason;
+    if (msg.includes("Not owner")) msg = "Blockchain: Bạn không phải chủ sở hữu NFT này.";
+    if (msg.includes("Already used")) msg = "Vé này đã được sử dụng trước đó.";
+    
+    throw new Error(msg);
   }
 }
 
@@ -175,6 +186,20 @@ export async function refundTicketOnChain(ticketId) {
     console.error("Refund error:", error);
     throw error;
   }
+}
+
+export async function getTicketOwnerOnChain(tokenId) {
+    try {
+        if (!window.ethereum) return null;
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        // Explicitly define ownerOf in a minimal ABI to ensure it's found
+        const minABI = ["function ownerOf(uint256 tokenId) view returns (address)"];
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, minABI, provider);
+        return await contract.ownerOf(window.BigInt(tokenId.toString()));
+    } catch (error) {
+        console.error("Error fetching ticket owner:", error);
+        return null;
+    }
 }
 
 export async function airdropTicketsOnChain(eventId, recipients) {
@@ -223,6 +248,58 @@ export async function cancelEventOnChain(eventId) {
     console.error("Cancel event error:", error);
     throw error;
   }
+}
+
+export async function grantOrganizerRoleOnChain(account) {
+    try {
+        const contract = await getContract();
+        console.log(`[Web3] Granting ORGANIZER_ROLE to ${account}...`);
+        const tx = await contract.grantOrganizerRole(account, { gasLimit: 200000 });
+        await tx.wait();
+        return tx.hash;
+    } catch (error) {
+        console.error("Grant Organizer role error:", error);
+        throw error;
+    }
+}
+
+export async function revokeOrganizerRoleOnChain(account) {
+    try {
+        const contract = await getContract();
+        console.log(`[Web3] Revoking ORGANIZER_ROLE from ${account}...`);
+        const tx = await contract.revokeOrganizerRole(account, { gasLimit: 200000 });
+        await tx.wait();
+        return tx.hash;
+    } catch (error) {
+        console.error("Revoke Organizer role error:", error);
+        throw error;
+    }
+}
+
+export async function grantAdminRoleOnChain(account) {
+    try {
+        const contract = await getContract();
+        console.log(`[Web3] Granting ADMIN_ROLE to ${account}...`);
+        const tx = await contract.grantAdminRole(account, { gasLimit: 200000 });
+        await tx.wait();
+        return tx.hash;
+    } catch (error) {
+        console.error("Grant Admin role error:", error);
+        throw error;
+    }
+}
+
+export async function revokeAdminRoleOnChain(account) {
+    try {
+        const contract = await getContract();
+        console.log(`[Web3] Revoking ADMIN_ROLE from ${account}...`);
+        const tx = await contract.revokeAdminRole(account, { gasLimit: 200000 });
+        await tx.wait();
+        return tx.hash;
+    } catch (error) {
+        console.error("Revoke Admin role error:", error);
+        throw error;
+    }
 }
 
 export async function signMessage(message) {

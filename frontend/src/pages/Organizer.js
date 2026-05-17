@@ -184,6 +184,10 @@ export default function Organizer() {
         return <div className="p-20 text-center font-bold text-gray-500 uppercase tracking-widest">Đang tải dữ liệu...</div>;
     }
 
+    if (!user) {
+        return null;
+    }
+
     return (
         <div className="bg-gray-100 min-h-screen p-10">
             <div className="max-w-6xl mx-auto">
