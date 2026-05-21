@@ -1,19 +1,23 @@
 require("dotenv").config();
-const http    = require("http");
+const http = require("http");
 const express = require("express");
-const cors    = require("cors");
+const cors = require("cors");
 const { Server } = require("socket.io");
 
-const db = require("./config/db");
+const prisma = require("./utils/prismaClient");
 const { getReadOnlyContract, listenToBlockchain } = require("./services/web3");
-const authRoutes   = require("./routes/authRoutes");
+const authRoutes = require("./routes/authRoutes");
 const eventsRoutes = require("./routes/eventsRoutes");
-const usersRoutes  = require("./routes/usersRoutes");
+const usersRoutes = require("./routes/usersRoutes");
 const ticketRoutes = require("./routes/ticketRoutes");
+const ticketTypeRoutes = require("./routes/ticketTypeRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
 
-const app    = express();
+const app = express();
 const server = http.createServer(app);
-const PORT   = Number(process.env.PORT) || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // ─── Socket.io ───────────────────────────────────────────────────────────────
 const io = new Server(server, {
@@ -40,11 +44,15 @@ app.use("/api", authRoutes);
 app.use("/api", eventsRoutes);
 app.use("/api", usersRoutes);
 app.use("/api", ticketRoutes);
+app.use("/api", ticketTypeRoutes);
+app.use("/api", orderRoutes);
+app.use("/api", dashboardRoutes);
+app.use("/api", uploadRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/health", async (_req, res) => {
   try {
-    await db.query("SELECT 1 AS ok");
+    await prisma.$queryRaw`SELECT 1`;
     res.status(200).json({
       ok: true,
       message: "Backend is running",

@@ -4,7 +4,7 @@ const path = require("path");
 
 require("dotenv").config();
 
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "sepolia_deployment.json");
+const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", `${hre.network.name}_deployment.json`);
 
 function loadDeployment() {
 	if (!fs.existsSync(DEPLOYMENT_FILE)) {
@@ -45,7 +45,7 @@ async function main() {
 	const contractAddress = deployment.Ticketing?.address ?? deployment.Ticket;
 
 	if (!contractAddress) {
-		throw new Error("No deployed Ticketing address found in sepolia deployment file.");
+		throw new Error(`No deployed Ticketing address found in ${hre.network.name} deployment file.`);
 	}
 
 	const eventIds = parseList(process.env.EVENT_IDS).map((value) => BigInt(value));
@@ -59,7 +59,7 @@ async function main() {
 		);
 	}
 
-	console.log("Cancelling misnamed events on Sepolia...");
+	console.log(`Cancelling misnamed events on ${hre.network.name}...`);
 	console.log("Contract:", contractAddress);
 	console.log("Operator:", operator.address);
 

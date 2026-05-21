@@ -4,27 +4,27 @@ const path = require("path");
 
 require("dotenv").config();
 
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "sepolia_deployment.json");
+const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", `${hre.network.name}_deployment.json`);
 
 const EVENTS = [
 	{
-		name: "RAVOLUTION MUSIC FESTIVAL",
+		name: "VPBank Hanoi",
 		price: hre.ethers.parseEther("0.01"),
 		totalTickets: 80n,
 		startOffsetSeconds: 2 * 60 * 60,
 	},
-	// {
-	// 	name: "FANTASY SHOW",
-	// 	price: hre.ethers.parseEther("0.01"),
-	// 	totalTickets: 75n,
-	// 	startOffsetSeconds: 4 * 60 * 60,
-	// },
-	// {
-	// 	name: "ĐÊM BẢO TÀNG",
-	// 	price: hre.ethers.parseEther("0.01"),
-	// 	totalTickets: 100n,
-	// 	startOffsetSeconds: 6 * 60 * 60,
-	// },
+	{
+		name: "FANTASY SHOW",
+		price: hre.ethers.parseEther("0.01"),
+		totalTickets: 75n,
+		startOffsetSeconds: 4 * 60 * 60,
+	},
+	{
+		name: "ĐÊM BẢO TÀNG",
+		price: hre.ethers.parseEther("0.01"),
+		totalTickets: 100n,
+		startOffsetSeconds: 6 * 60 * 60,
+	},
 ];
 
 function loadDeployment() {
@@ -59,13 +59,13 @@ async function main() {
 	const contractAddress = deployment.Ticketing?.address ?? deployment.Ticket;
 
 	if (!contractAddress) {
-		throw new Error("No deployed Ticketing address found in sepolia deployment file.");
+		throw new Error(`No deployed Ticketing address found in ${hre.network.name} deployment file.`);
 	}
 
 	const organizerSigner = await getOrganizerSigner(deployment.organizer);
 	const ticketing = await hre.ethers.getContractAt("Ticketing", contractAddress, organizerSigner);
 
-	console.log("Creating events on Sepolia...");
+	console.log(`Creating events on ${hre.network.name}...`);
 	console.log("Contract:", contractAddress);
 	console.log("Organizer:", organizerSigner.address);
 

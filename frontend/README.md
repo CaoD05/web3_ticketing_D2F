@@ -1,70 +1,69 @@
-# Getting Started with Create React App
+# 🎨 Web3 Ticketing — Frontend Application
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern, responsive React application for the Web3 Ticketing Platform. This frontend allows users to browse events, purchase NFT tickets, and manage their ticket portfolio.
 
-## Available Scripts
+## 🚀 Key Features
 
-In the project directory, you can run:
+- **Wallet Integration:** Seamless connection with MetaMask and other Web3 wallets.
+- **Dynamic Event Discovery:** Browse and search for events with rich metadata.
+- **NFT Ownership View:** View and verify your owned tickets in a dedicated "My Tickets" section.
+- **Responsive Design:** Built with Tailwind CSS for a great experience on any device.
+- **Interactive Auth:** Hybrid login flow supporting Email/Password, Google, and Wallet connections.
+- **Real-time UX:** Instant UI updates via Socket.io when tickets are purchased.
 
-### `npm start`
+## 📂 Directory Structure
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```text
+frontend/
+├── public/             # Static assets
+├── src/
+│   ├── components/     # Reusable UI components (Navbar, Hero, Cards)
+│   ├── context/        # React Context providers (Auth, Wallet)
+│   ├── layouts/        # Page layout wrappers (Main, Auth)
+│   ├── lib/            # Utility libraries and API helpers
+│   ├── pages/          # Full page components
+│   ├── App.js          # Main application component and routing
+│   └── index.js        # Entry point
+├── tailwind.config.js  # Tailwind CSS configuration
+└── .env.example        # Template for environment variables
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🛠️ Getting Started
 
-### `npm test`
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+2.  **Configure Environment:**
+    Copy `.env.example` to `.env` and set the following:
+    - `REACT_APP_API_BASE_URL`: The URL of your backend (default: `http://localhost:5000/api`).
+    - `REACT_APP_GOOGLE_CLIENT_ID`: Your Google OAuth client ID.
+3.  **Start Development Server:**
+    ```bash
+    npm start
+    ```
+    The application will be available at `http://localhost:3000`.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 🎨 Styling
 
-### `npm run build`
+This project uses **Tailwind CSS** for styling. You can customize the theme in `tailwind.config.js`.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 📦 Build for Production
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+To create an optimized production build:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+npm run build
+```
 
-### `npm run eject`
+The output will be in the `build/` folder.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 🛡️ Authentication Flow
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1.  **Identity Auth:** Users can log in via Email or Google.
+2.  **Wallet Link:** Once logged in, users are prompted to connect their MetaMask wallet to interact with blockchain features.
+3.  **Persistence:** JWT tokens are stored securely to maintain session state.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+---
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+For any issues or suggestions, please refer to the project's root [README.md](../README.md).

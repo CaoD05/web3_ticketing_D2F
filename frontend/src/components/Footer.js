@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function Footer() {
     return (
         <footer className="bg-gray-950 text-neutral-content flex flex-col">
@@ -29,13 +31,13 @@ export default function Footer() {
                         <div className="flex flex-col flex-grow space-y-4">
                             <div className="font-semibold text-sm text-[#98a2b3]">ABOUT US</div>
                             <div className="flex flex-col space-y-3">
-                                <a href="#" className="text-base text-white hover:text-yellow-400">About Us</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Operational Regulations</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Information Privacy Policy</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Payment Privacy Policy</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Payment Method</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Our Partners</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Terms of Use</a>
+                                <Link to="/about" className="text-base text-white hover:text-yellow-400">About Us</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Operational Regulations</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Information Privacy Policy</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Payment Privacy Policy</Link>
+                                <Link to="/payment-method" className="text-base text-white hover:text-yellow-400">Payment Method</Link>
+                                <Link to="/about" className="text-base text-white hover:text-yellow-400">Our Partners</Link>
+                                <Link to="/terms" className="text-base text-white hover:text-yellow-400">Terms of Use</Link>
                             </div>
                         </div>
 
@@ -43,8 +45,8 @@ export default function Footer() {
                         <div className="flex flex-col flex-grow space-y-4">
                             <div className="font-semibold text-sm text-[#98a2b3]">OFFERS</div>
                             <div className="flex flex-col space-y-3">
-                                <a href="#" className="text-base text-white hover:text-yellow-400">For Customer</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Promotion</a>
+                                <Link to="/events" className="text-base text-white hover:text-yellow-400">Customer</Link>
+                                <Link to="/events" className="text-base text-white hover:text-yellow-400">Promotion</Link>
                             </div>
                         </div>
 
@@ -52,10 +54,7 @@ export default function Footer() {
                         <div className="flex flex-col flex-grow space-y-4">
                             <div className="font-semibold text-sm text-[#98a2b3]">SUPPORT</div>
                             <div className="flex flex-col space-y-3">
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Contact Us</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">FAQ</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Blog</a>
-                                <a href="#" className="text-base text-white hover:text-yellow-400">Instructions</a>
+                                <Link to="/contact" className="text-base text-white hover:text-yellow-400">Contact Us</Link>
                             </div>
                         </div>
                     </div>

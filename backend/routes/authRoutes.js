@@ -1,12 +1,28 @@
 const express = require("express");
-const router = express.Router();
-const { login, getMe } = require("../controllers/authController");
+const {
+  login,
+  register,
+  getMe,
+  connectWallet,
+  googleAuth,
+  getNonce,
+  changePassword,
+} = require("../controllers/authController");
 const { verifyToken } = require("../middleware/authMiddleware");
 
-// POST /api/auth/login — Đăng nhập bằng ví, nhận JWT
-router.post("/auth/login", login);
+const router = express.Router();
 
-// GET /api/auth/me — Xem thông tin người dùng hiện tại (cần token)
+// Public
+router.post("/auth/login", login);
+router.post("/auth/register", register);
+router.post("/auth/google", googleAuth);
+
+// Protected (cần JWT)
 router.get("/auth/me", verifyToken, getMe);
+router.get("/auth/nonce", verifyToken, getNonce);
+router.put("/auth/connect-wallet", verifyToken, connectWallet);
+router.put("/auth/link-wallet", verifyToken, connectWallet);
+router.post("/auth/connect-wallet", verifyToken, connectWallet);
+router.put("/auth/change-password", verifyToken, changePassword);
 
 module.exports = router;

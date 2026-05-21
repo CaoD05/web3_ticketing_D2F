@@ -1,8 +1,8 @@
 /**
- * Sepolia Interaction Script for Ticketing.sol
+ * Oasis Sapphire Testnet Interaction Script for Ticketing.sol
  *
  * Usage:
- *   npx hardhat run scripts/interact-sepolia.js --network sepolia
+ *   npx hardhat run scripts/interact-sapphire.js --network sapphireTestnet
  */
 
 const hre = require("hardhat");
@@ -44,7 +44,7 @@ async function main() {
   const organizer = signers[2] ?? signers[0];
 
   console.log("=".repeat(60));
-  console.log("  Ticketing Contract — Sepolia Interaction Script");
+  console.log("  Ticketing Contract — Oasis Sapphire Interaction Script");
   console.log("=".repeat(60));
   console.log(`  Owner/Deployer: ${owner.address}`);
   console.log(`  Admin:          ${admin.address}`);
@@ -52,7 +52,7 @@ async function main() {
   console.log(`  Contract:       ${CONTRACT_ADDRESS}`);
 
   const balance = await provider.getBalance(owner.address);
-  console.log(`  Balance:        ${ethers.formatEther(balance)} ETH`);
+  console.log(`  Balance:        ${ethers.formatEther(balance)} ROSE/ETH`);
 
   // ── 1. Read contract state ──────────────────────────────────────────────
 
@@ -98,7 +98,7 @@ async function main() {
   const startTime    = inFuture(7200);
 
   const createTx = await ticketAsOrganizer.createEvent(
-    `Sepolia Live #${Date.now()}`,
+    `Sapphire Live #${Date.now()}`,
     eventPrice,
     totalTickets,
     startTime
@@ -113,7 +113,7 @@ async function main() {
   log("READ EVENT", `Fetching event ${eventId}...`);
   const ev = await ticketAsOwner.events(BigInt(eventId));
   console.log(`  Name:      ${ev.name}`);
-  console.log(`  Price:     ${ethers.formatEther(ev.price)} ETH`);
+  console.log(`  Price:     ${ethers.formatEther(ev.price)} ROSE/ETH`);
   console.log(`  Tickets:   ${ev.totalTickets.toString()}`);
   console.log(`  Organizer: ${ev.organizer}`);
   console.log(`  Cancelled: ${ev.cancelled}`);
@@ -146,7 +146,7 @@ async function main() {
 
   log("FUNDS", "Checking organizer withdrawable funds...");
   const funds = await ticketAsOwner.withdrawableFunds(organizer.address);
-  console.log(`  Organizer withdrawable: ${ethers.formatEther(funds)} ETH`);
+  console.log(`  Organizer withdrawable: ${ethers.formatEther(funds)} ROSE/ETH`);
 
   // ── 9. List for resale ──────────────────────────────────────────────────
 
@@ -154,7 +154,7 @@ async function main() {
   const resalePrice = (eventPrice * 110n) / 100n;
   const listTx = await ticketAsOwner.listForResale(BigInt(ticketId), resalePrice);
   await waitAndLog(listTx, "listForResale");
-  console.log(`  Listed at: ${ethers.formatEther(resalePrice)} ETH`);
+  console.log(`  Listed at: ${ethers.formatEther(resalePrice)} ROSE/ETH`);
 
   // ── 10. Delist from resale ──────────────────────────────────────────────
 
@@ -178,7 +178,7 @@ async function main() {
   if (withdrawable > 0n) {
     const withdrawTx = await ticketAsOrganizer.withdrawFunds();
     await waitAndLog(withdrawTx, "withdrawFunds");
-    console.log(`  Withdrew: ${ethers.formatEther(withdrawable)} ETH`);
+    console.log(`  Withdrew: ${ethers.formatEther(withdrawable)} ROSE/ETH`);
   } else {
     console.log("  No funds to withdraw.");
   }
@@ -211,15 +211,15 @@ async function main() {
   const gas        = refReceipt.gasUsed * refReceipt.gasPrice;
   const balAfter   = await provider.getBalance(owner.address);
   const refunded   = balAfter + gas - balBefore;
-  console.log(`  Refunded: ${ethers.formatEther(refunded)} ETH`);
+  console.log(`  Refunded: ${ethers.formatEther(refunded)} ROSE/ETH`);
 
   // ── Summary ─────────────────────────────────────────────────────────────
 
   console.log("\n" + "=".repeat(60));
   console.log("  ✅  All interactions completed successfully!");
   console.log("=".repeat(60));
-  console.log(`\n  View on Etherscan:`);
-  console.log(`  https://sepolia.etherscan.io/address/${CONTRACT_ADDRESS}\n`);
+  console.log(`\n  View on Explorer:`);
+  console.log(`  https://explorer.oasis.io/testnet/sapphire/address/${CONTRACT_ADDRESS}\n`);
 }
 
 main()

@@ -56,7 +56,7 @@ describe("Ticket", function () {
 
   describe("createEvent", () => {
     it("organizer can create an event", async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 100, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 100, START, "");
       const e = await ticket.events(0);
       expect(e.name).to.equal("Concert");
       expect(e.price).to.equal(PRICE);
@@ -66,39 +66,39 @@ describe("Ticket", function () {
     });
 
     it("increments nextEventId", async () => {
-      await ticket.connect(organizer).createEvent("A", PRICE, 10, START);
-      await ticket.connect(organizer).createEvent("B", PRICE, 10, START);
+      await ticket.connect(organizer).createEvent("A", PRICE, 10, START, "");
+      await ticket.connect(organizer).createEvent("B", PRICE, 10, START, "");
       expect(await ticket.nextEventId()).to.equal(2);
     });
 
     it("rejects empty name", async () => {
       await expect(
-        ticket.connect(organizer).createEvent("", PRICE, 10, START)
+        ticket.connect(organizer).createEvent("", PRICE, 10, START, "")
       ).to.be.revertedWith("Event name cannot be empty");
     });
 
     it("rejects zero price", async () => {
       await expect(
-        ticket.connect(organizer).createEvent("X", 0, 10, START)
+        ticket.connect(organizer).createEvent("X", 0, 10, START, "")
       ).to.be.revertedWith("Price must be greater than 0");
     });
 
     it("rejects zero tickets", async () => {
       await expect(
-        ticket.connect(organizer).createEvent("X", PRICE, 0, START)
+        ticket.connect(organizer).createEvent("X", PRICE, 0, START, "")
       ).to.be.revertedWith("Total tickets must be greater than 0");
     });
 
     it("rejects past startTime", async () => {
       const past = Math.floor(Date.now() / 1000) - 1;
       await expect(
-        ticket.connect(organizer).createEvent("X", PRICE, 10, past)
+        ticket.connect(organizer).createEvent("X", PRICE, 10, past, "")
       ).to.be.revertedWith("Start must be in future");
     });
 
     it("non-organizer cannot create event", async () => {
       await expect(
-        ticket.connect(other).createEvent("X", PRICE, 10, START)
+        ticket.connect(other).createEvent("X", PRICE, 10, START, "")
       ).to.be.reverted;
     });
   });
@@ -107,7 +107,7 @@ describe("Ticket", function () {
 
   describe("cancelEvent", () => {
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 100, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 100, START, "");
     });
 
     it("organizer can cancel", async () => {
@@ -134,13 +134,13 @@ describe("Ticket", function () {
 
   describe("buyTicket", () => {
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 2, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 2, START, "");
     });
 
     it("buyer receives ticket and organizer gets funds", async () => {
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
-      const t = await ticket.tickets(0);
-      expect(t.owner).to.equal(buyer.address);
+      const t = await ticket.getTicketDetails(0);
+      expect(await ticket.ownerOf(0)).to.equal(buyer.address);
       expect(t.used).to.be.false;
       expect(await ticket.withdrawableFunds(organizer.address)).to.equal(PRICE);
     });
@@ -177,7 +177,7 @@ describe("Ticket", function () {
 
   describe("claimRefund", () => {
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START, "");
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
     });
 
@@ -198,8 +198,11 @@ describe("Ticket", function () {
     it("cannot refund twice", async () => {
       await ticket.connect(organizer).cancelEvent(0);
       await ticket.connect(buyer).claimRefund(0);
-      await expect(ticket.connect(buyer).claimRefund(0)).to.be.revertedWith("Ticket already used");
+      await expect(
+        ticket.connect(buyer).claimRefund(0)
+      ).to.be.revertedWith("ERC721: invalid token ID");
     });
+
 
     it("non-owner cannot refund", async () => {
       await ticket.connect(organizer).cancelEvent(0);
@@ -211,13 +214,13 @@ describe("Ticket", function () {
 
   describe("useTicket", () => {
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START, "");
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
     });
 
     it("owner can use their ticket", async () => {
       await ticket.connect(buyer).useTicket(0);
-      expect((await ticket.tickets(0)).used).to.be.true;
+      expect((await ticket.getTicketDetails(0)).used).to.be.true;
     });
 
     it("cannot use twice", async () => {
@@ -234,13 +237,13 @@ describe("Ticket", function () {
 
   describe("verifyTicket", () => {
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START, "");
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
     });
 
     it("admin can verify ticket", async () => {
       await ticket.connect(admin).verifyTicket(0);
-      expect((await ticket.tickets(0)).used).to.be.true;
+      expect((await ticket.getTicketDetails(0)).used).to.be.true;
     });
 
     it("cannot verify already used ticket", async () => {
@@ -257,13 +260,13 @@ describe("Ticket", function () {
 
   describe("transferTicket", () => {
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START, "");
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
     });
 
     it("owner can transfer ticket", async () => {
       await ticket.connect(buyer).transferTicket(0, buyer2.address);
-      expect((await ticket.tickets(0)).owner).to.equal(buyer2.address);
+      expect(await ticket.ownerOf(0)).to.equal(buyer2.address);
     });
 
     it("cannot transfer used ticket", async () => {
@@ -292,13 +295,13 @@ describe("Ticket", function () {
     const RESALE_PRICE = ethers.parseEther("0.11"); // within 120% cap
 
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START, "");
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
     });
 
     it("owner can list ticket for resale", async () => {
       await ticket.connect(buyer).listForResale(0, RESALE_PRICE);
-      expect((await ticket.tickets(0)).resalePrice).to.equal(RESALE_PRICE);
+      expect((await ticket.getTicketDetails(0)).resalePrice).to.equal(RESALE_PRICE);
     });
 
     it("rejects price above 120% cap", async () => {
@@ -311,7 +314,7 @@ describe("Ticket", function () {
     it("buyer2 can buy resale ticket", async () => {
       await ticket.connect(buyer).listForResale(0, RESALE_PRICE);
       await ticket.connect(buyer2).buyResale(0, { value: RESALE_PRICE });
-      expect((await ticket.tickets(0)).owner).to.equal(buyer2.address);
+      expect(await ticket.ownerOf(0)).to.equal(buyer2.address);
     });
 
     it("seller receives 98% of resale price", async () => {
@@ -332,7 +335,7 @@ describe("Ticket", function () {
     it("owner can delist", async () => {
       await ticket.connect(buyer).listForResale(0, RESALE_PRICE);
       await ticket.connect(buyer).delistResale(0);
-      expect((await ticket.tickets(0)).resalePrice).to.equal(0);
+      expect((await ticket.getTicketDetails(0)).resalePrice).to.equal(0);
     });
   });
 
@@ -340,7 +343,7 @@ describe("Ticket", function () {
 
   describe("withdrawFunds", () => {
     beforeEach(async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START);
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 10, START, "");
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
     });
 
@@ -366,11 +369,99 @@ describe("Ticket", function () {
   // ── remainingTickets ───────────────────────────────────────────────────────
 
   describe("remainingTickets", () => {
-    it("returns correct count after purchases", async () => {
-      await ticket.connect(organizer).createEvent("Concert", PRICE, 3, START);
+    it("remainingTickets returns correct count after purchases", async () => {
+      await ticket.connect(organizer).createEvent("Concert", PRICE, 3, START, "");
       expect(await ticket.remainingTickets(0)).to.equal(3);
       await ticket.connect(buyer).buyTicket(0, { value: PRICE });
       expect(await ticket.remainingTickets(0)).to.equal(2);
     });
-  });
-});
+    });
+
+    // ── Advanced Features ──────────────────────────────────────────────────────
+
+    describe("Airdrop", () => {
+    beforeEach(async () => {
+      await ticket.connect(organizer).createEvent("Airdrop Event", PRICE, 10, START, "");
+    });
+
+    it("organizer can airdrop tickets", async () => {
+      const recipients = [buyer.address, other.address];
+      await ticket.connect(organizer).airdropTickets(0, recipients);
+
+      expect(await ticket.ownerOf(0)).to.equal(buyer.address);
+      expect(await ticket.ownerOf(1)).to.equal(other.address);
+      expect(await ticket.remainingTickets(0)).to.equal(8);
+    });
+
+    it("rejects non-authorized airdrop", async () => {
+      await expect(
+        ticket.connect(buyer).airdropTickets(0, [other.address])
+      ).to.be.revertedWith("Not authorised");
+    });
+
+    it("rejects airdrop if not enough tickets", async () => {
+      const recipients = Array(11).fill(buyer.address);
+      await expect(
+        ticket.connect(organizer).airdropTickets(0, recipients)
+      ).to.be.revertedWith("Not enough tickets left");
+    });
+    });
+
+    describe("Voluntary Refund (80%)", () => {
+    beforeEach(async () => {
+      await ticket.connect(organizer).createEvent("Refund Event", PRICE, 10, START, "");
+      await ticket.connect(buyer).buyTicket(0, { value: PRICE });
+    });
+
+    it("owner can request 80% refund", async () => {
+      const balanceBefore = await ethers.provider.getBalance(buyer.address);
+
+      const tx = await ticket.connect(buyer).refundTicket(0);
+      const receipt = await tx.wait();
+      const gasUsed = receipt.gasUsed * receipt.gasPrice;
+
+      const balanceAfter = await ethers.provider.getBalance(buyer.address);
+      const expectedRefund = (PRICE * 80n) / 100n;
+
+      expect(balanceAfter).to.equal(balanceBefore + expectedRefund - gasUsed);
+      await expect(ticket.ownerOf(0)).to.be.revertedWith("ERC721: invalid token ID");
+    });
+
+    it("organizer funds are deducted", async () => {
+      const expectedRefund = (PRICE * 80n) / 100n;
+      await ticket.connect(buyer).refundTicket(0);
+      expect(await ticket.withdrawableFunds(organizer.address)).to.equal(PRICE - expectedRefund);
+    });
+
+    it("cannot refund after event starts", async () => {
+      // Fast forward time
+      await ethers.provider.send("evm_setNextBlockTimestamp", [START + 1]);
+      await ethers.provider.send("evm_mine");
+
+      await expect(
+        ticket.connect(buyer).refundTicket(0)
+      ).to.be.revertedWith("Event already started");
+    });
+    });
+
+    describe("Anti-Scalper Cooldown", () => {
+    it("enforces 1-minute cooldown between purchases", async () => {
+      // Use a timestamp far in the future for this specific test
+      const distantStart = START + 3600; 
+      await ticket.connect(organizer).createEvent("Bot Proof", PRICE, 10, distantStart, "");
+
+      await ticket.connect(buyer).buyTicket(0, { value: PRICE });
+
+      await expect(
+        ticket.connect(buyer).buyTicket(0, { value: PRICE })
+      ).to.be.revertedWith("Anti-scalper: Cooldown active");
+
+      // Fast forward 61 seconds
+      await ethers.provider.send("evm_increaseTime", [61]);
+      await ethers.provider.send("evm_mine");
+
+      await expect(ticket.connect(buyer).buyTicket(0, { value: PRICE })).to.not.be.reverted;
+    });
+    });
+    });
+

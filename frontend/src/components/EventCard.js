@@ -3,58 +3,64 @@ import { Link } from "react-router-dom";
 export default function EventCard({ e, loading = false }) {
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl shadow animate-pulse p-4 h-full flex flex-col justify-between">
-                <div className="h-48 w-full bg-gray-200 rounded-md" />
-                <div className="mt-4 space-y-3">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
-                    <div className="h-6 bg-gray-200 rounded w-1/3" />
+            <div className="bg-white rounded-3xl shadow-sm animate-pulse overflow-hidden">
+                <div className="aspect-video w-full bg-zinc-200" />
+                <div className="p-5 space-y-3">
+                    <div className="h-4 bg-zinc-200 rounded w-3/4" />
+                    <div className="h-3 bg-zinc-200 rounded w-1/2" />
+                    <div className="h-8 bg-zinc-200 rounded w-full" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden">
-            <img
-                src={e?.image || "/placeholder-event.jpg"}
-                className="h-48 w-full object-cover hover:scale-105 transition"
-                alt={e?.title || "Event"}
-            />
+        <Link 
+            to={e?.id != null ? `/event/${e.id}` : "#"}
+            className="bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-100 h-full flex flex-col cursor-pointer"
+        >
+            <div className="relative aspect-video overflow-hidden">
+                <img
+                    src={e?.detailImage || "/placeholder-event.jpg"}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    alt={e?.title || "Event"}
+                    loading="lazy"
+                />
+                <div className="absolute top-4 left-4">
+                    {e?.category && (
+                        <div className="backdrop-blur-md bg-black/50 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-white/20">
+                            {e.category}
+                        </div>
+                    )}
+                </div>
+            </div>
 
-            <div className="p-4">
-                {e?.category && (
-                    <div className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700 mb-3">
-                        {e.category}
+            <div className="p-5 flex-1 flex flex-col justify-between">
+                <div>
+                    <h2 className="font-bold text-xl text-zinc-900 line-clamp-2 leading-tight group-hover:text-yellow-500 transition-colors">
+                        {e?.title || "Untitled Event"}
+                    </h2>
+
+                    <div className="flex items-center gap-2 text-zinc-500 text-xs mt-3 font-medium">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {e?.date || "Sắp diễn ra"}
                     </div>
-                )}
+                </div>
 
-                <h2 className="font-bold text-lg">
-                    {e?.title || "Untitled Event"}
-                </h2>
-
-                <p className="text-gray-500 text-sm mt-1">
-                    {e?.date || "Sắp diễn ra"}
-                </p>
-
-                <div className="flex justify-between items-center mt-3">
-                    <span className="text-red-500 font-bold">
-                        {e?.price ? `${e.price} VND` : "0 VND"}
-                    </span>
-
-                    {e?.id ? (
-                        <Link to={`/event/${e.id}`}>
-                            <button className="bg-black text-white px-3 py-1 rounded-lg hover:bg-gray-800">
-                                Chi tiết
-                            </button>
-                        </Link>
+                <div className="mt-6">
+                    {e?.id != null ? (
+                        <div className="block w-full text-center bg-zinc-900 text-white py-3 rounded-2xl font-bold text-sm group-hover:bg-black transition-colors active:scale-95">
+                            Mua vé ngay
+                        </div>
                     ) : (
-                        <button className="bg-gray-300 text-gray-500 px-3 py-1 rounded-lg" disabled>
+                        <button className="w-full bg-zinc-100 text-zinc-400 py-3 rounded-2xl font-bold text-sm" disabled>
                             Đang tải...
                         </button>
                     )}
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }

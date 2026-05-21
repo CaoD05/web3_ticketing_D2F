@@ -1,8 +1,26 @@
 const express = require("express");
-const { createUser } = require("../controllers/usersController");
+const {
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUserRole,
+  updateUserStatus,
+  deleteUser,
+  updateMe,
+} = require("../controllers/usersController");
+const { verifyToken, requireRole } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.post("/users", createUser);
+// User — cập nhật thông tin cá nhân
+router.put("/me", verifyToken, updateMe);
+
+// Admin only — tất cả user management đều cần admin role
+router.get("/users", verifyToken, requireRole("admin"), getAllUsers);
+router.get("/users/:id", verifyToken, requireRole("admin"), getUserById);
+router.post("/users", verifyToken, requireRole("admin"), createUser);
+router.put("/users/:id/role", verifyToken, requireRole("admin"), updateUserRole);
+router.put("/users/:id/status", verifyToken, requireRole("admin"), updateUserStatus);
+router.delete("/users/:id", verifyToken, requireRole("admin"), deleteUser);
 
 module.exports = router;

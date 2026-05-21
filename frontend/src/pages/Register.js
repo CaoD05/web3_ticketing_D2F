@@ -1,122 +1,194 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import axios from "axios";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../lib/api";
+import { useAuth } from "../context/AuthContext";
+
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export default function Register() {
+    const navigate = useNavigate();
+    const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const { login: authLogin } = useAuth();
+    const googleBtnRef = useRef(null);
 
-    const register = () => {
-        if (password !== confirmPassword) {
-            alert("Passwords do not match");
+    const handleGoogleResponse = useCallback(async (response) => {
+        try {
+            setIsLoading(true);
+            const res = await api.post("/auth/google", {
+                credential: response.credential,
+            });
+
+            if (res.data.ok && res.data.token && res.data.user) {
+                authLogin(res.data.token, res.data.user);
+                alert(res.data.isNewUser
+                    ? "Dang ky bang Google thanh cong! Chao mung ban."
+                    : "Tai khoan da ton tai. Dang nhap thanh cong!"
+                );
+                navigate("/");
+            } else {
+                alert("Dang ky Google khong thanh cong");
+            }
+        } catch (err) {
+            alert("Dang ky Google that bai: " + (err.response?.data?.message || err.message));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [authLogin, navigate]);
+
+    useEffect(() => {
+        const initGoogle = () => {
+            if (window.google && window.google.accounts && GOOGLE_CLIENT_ID) {
+                window.google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleGoogleResponse,
+                });
+
+                if (googleBtnRef.current) {
+                    window.google.accounts.id.renderButton(
+                        googleBtnRef.current,
+                        {
+                            theme: "outline",
+                            size: "large",
+                            width: "288",
+                            text: "signup_with",
+                            shape: "rectangular",
+                        }
+                    );
+                }
+            }
+        };
+
+        if (window.google && window.google.accounts) {
+            initGoogle();
+        } else {
+            const interval = setInterval(() => {
+                if (window.google && window.google.accounts) {
+                    clearInterval(interval);
+                    initGoogle();
+                }
+            }, 200);
+            return () => clearInterval(interval);
+        }
+    }, [handleGoogleResponse]);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        register();
+    };
+
+    const register = async () => {
+        if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+            alert("Vui lòng nhập đầy đủ thông tin.");
             return;
         }
 
-        axios.post("https://localhost:5001/api/auth/register", {
-            email, password, role: "user"
-        }).then(() => {
-            alert("Registration successful! Please login.");
-            // Redirect to login after successful registration
-            window.location.href = "/auth/login";
-        }).catch(err => {
-            alert("Registration failed: " + (err.response?.data?.message || "Unknown error"));
-        });
+        if (password !== confirmPassword) {
+            alert("Mật khẩu xác nhận không khớp.");
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const res = await api.post("/auth/register", {
+                FullName: fullName,
+                Email: email,
+                Password: password,
+            });
+
+            if (res.data.ok && res.data.token && res.data.user) {
+                authLogin(res.data.token, res.data.user);
+                alert("Đăng ký thành công!");
+                navigate("/");
+            } else {
+                alert("Đăng ký không thành công");
+            }
+        } catch (err) {
+            alert("Đăng ký thất bại: " + (err.response?.data?.message || err.message));
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen w-full" style={{ background: "#181818" }}>
-
-            {/* Top bar */}
+        <div className="min-h-screen w-full bg-[#111111] text-white">
             <div className="flex items-center justify-between px-10 py-4">
-                <div className="flex items-center gap-2">
-                    <img src="/logoUTC.png" alt="UTC Logo" className="w-8 h-8" />
+                <Link to="/" className="flex items-center gap-2 group">
+                    <img src="/logoUTC.png" alt="UTC Logo" className="w-8 h-8 group-hover:scale-110 transition" />
                     <span className="text-3xl font-black text-yellow-400">U-Ticket</span>
-                </div>
-                <Link to="/" className="text-sm font-bold text-black bg-yellow-400/80 px-3 py-1 rounded-lg hover:bg-yellow-400 hover:text-black transition">
-                    Home
                 </Link>
             </div>
 
-            {/* Register component */}
-            <div className="flex justify-center items-center pt-8 pb-16">
-                <div className="shadow-lg rounded-xl overflow-hidden" style={{ width: "48rem", minHeight: "32rem", background: "#ffffff", outline: "3px solid #8B5CF6" }}>
-                    <div className="flex">
-                        {/* Register form */}
-                        <div className="flex flex-wrap content-center justify-center rounded-l-md bg-white" style={{ width: "24rem", height: "32rem" }}>
-                            <div className="w-72">
-                                <h1 className="text-xl font-semibold">Create account</h1>
-                                <small className="text-gray-400">Join us today! Please enter your details</small>
-
-                                <form className="mt-4" onSubmit={(e) => { e.preventDefault(); register(); }}>
-                                    <div className="mb-3">
-                                        <label className="mb-2 block text-xs font-semibold">Email</label>
-                                        <input
-                                            type="email"
-                                            placeholder="Enter your email"
-                                            value={email}
-                                            onChange={e => setEmail(e.target.value)}
-                                            className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-1.5 text-gray-500"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="mb-3">
-                                        <label className="mb-2 block text-xs font-semibold">Password</label>
-                                        <input
-                                            type="password"
-                                            placeholder="*****"
-                                            value={password}
-                                            onChange={e => setPassword(e.target.value)}
-                                            className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-1.5 text-gray-500"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="mb-3">
-                                        <label className="mb-2 block text-xs font-semibold">Confirm Password</label>
-                                        <input
-                                            type="password"
-                                            placeholder="*****"
-                                            value={confirmPassword}
-                                            onChange={e => setConfirmPassword(e.target.value)}
-                                            className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-1.5 text-gray-500"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="mb-3">
-                                        <button
-                                            type="submit"
-                                            className="mb-1.5 block w-full text-center text-white bg-purple-700 hover:bg-purple-900 px-2 py-1.5 rounded-md"
-                                        >
-                                            Sign up
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="flex flex-wrap justify-center w-full border border-gray-300 hover:border-gray-500 px-2 py-1.5 rounded-md"
-                                        >
-                                            <img className="w-5 mr-2" src="https://lh3.googleusercontent.com/COxitqgJr1sJnIDe8-jiKhxDx1FrYbtRHKJ9z_hELisAlapwE9LUPh6fcXIfb5vwpbMl4xl9H9TRFPc5NOO8Sb3VSgIBrfRYvW6cUA" alt="Google" />
-                                            Sign up with Google
-                                        </button>
-                                    </div>
-                                </form>
-
-                                <div className="text-center">
-                                    <span className="text-xs text-gray-400 font-semibold">Already have account?</span>
-                                    <Link to="/auth/login" className="text-xs font-semibold text-purple-700 ml-1">Sign in</Link>
-                                </div>
-                            </div>
+            <div className="flex items-center justify-center px-4 pb-16 pt-8">
+                <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl shadow-black/40 md:grid-cols-2">
+                    <div className="flex flex-col justify-center bg-[#151515] p-8 md:p-12">
+                        <div className="mb-8 space-y-3">
+                            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-yellow-400">Create account</p>
+                            <h1 className="text-3xl font-black text-white md:text-4xl">Join the ticketing network</h1>
                         </div>
 
-                        {/* Register banner */}
-                        <div className="flex flex-wrap content-center justify-center rounded-r-md overflow-hidden" style={{ width: "24rem", height: "32rem" }}>
-                            <img
-                                className="w-full h-full object-cover"
-                                src="https://i.imgur.com/CKRSzBQ.jpg"
-                                alt="Register banner"
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <input
+                                required
+                                type="text"
+                                placeholder="Your full name"
+                                value={fullName}
+                                onChange={(event) => setFullName(event.target.value)}
+                                className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
                             />
+                            <input
+                                required
+                                type="email"
+                                placeholder="name@example.com"
+                                value={email}
+                                onChange={(event) => setEmail(event.target.value)}
+                                className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
+                            />
+                            <input
+                                required
+                                type="password"
+                                placeholder="Create a password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
+                            />
+                            <input
+                                required
+                                type="password"
+                                placeholder="Repeat the password"
+                                value={confirmPassword}
+                                onChange={(event) => setConfirmPassword(event.target.value)}
+                                className="block w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/30"
+                            />
+
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="mb-3 block w-full rounded-2xl bg-yellow-400 px-6 py-3 text-center font-bold text-black hover:bg-yellow-300 disabled:bg-gray-400 transition shadow-lg"
+                            >
+                                {isLoading ? "Đang xử lý..." : "Sign up"}
+                            </button>
+
+                            <div ref={googleBtnRef} className="flex justify-center w-full mt-4"></div>
+                        </form>
+
+                        <div className="mt-8 text-sm text-white/70">
+                            Already have an account?{" "}
+                            <Link to="/login" className="font-semibold text-yellow-400 hover:text-yellow-300">
+                                Sign in
+                            </Link>
                         </div>
+                    </div>
+
+                    <div className="relative min-h-[22rem] overflow-hidden bg-[#0f0f0f] md:min-h-full">
+                        <img
+                            className="h-full w-full object-cover opacity-90"
+                            src="https://i.imgur.com/CKRSzBQ.jpg"
+                            alt="Register banner"
+                        />
                     </div>
                 </div>
             </div>

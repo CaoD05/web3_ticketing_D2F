@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  UserID        Int      @id @default(autoincrement()) @map("UserID")
+  FullName      String   @map("FullName") @db.VarChar(100)
+  Email         String?  @unique @map("Email") @db.VarChar(100)
+  PasswordHash  String?  @map("PasswordHash") @db.VarChar(255)
+  GoogleSub     String?  @unique @map("GoogleSub") @db.VarChar(128)
+  WalletAddress String?  @unique @map("WalletAddress") @db.VarChar(42)
+  Nonce         String?  @map("Nonce") @db.VarChar(100)
+  Role          String?  @default("user") @map("Role") @db.VarChar(20)
+  IsSuspended   Boolean  @default(false) @map("IsSuspended")
+  CreatedAt     DateTime? @default(now()) @map("CreatedAt")
+
+  CreatedEvents Event[]  @relation("EventCreator")
+  Orders        Order[]
+
+  @@map("Users")
+}
+
+model Event {
+  EventID         Int        @id @default(autoincrement()) @map("EventID")
+  ContractEventID Int?       @unique @map("ContractEventID")
+  EventName       String     @map("EventName") @db.VarChar(200)
+  MetaURL         String?    @map("MetaURL")
+  BannerURL       String?    @map("bannerurl")
+  DetailURL       String?    @map("detailurl")
+  Price           Decimal?   @map("price") @db.Decimal(78, 0)
+  EventDate       DateTime?  @map("EventDate")
+  Location        String?    @map("Location") @db.VarChar(200)
+  ContractAddress String?    @map("ContractAddress") @db.VarChar(42)
+  TotalTickets    Int        @map("TotalTickets")
+  TicketsSold     Int?       @default(0) @map("TicketsSold")
+  EventType       String?    @map("EventType") @db.VarChar(50)
+  CreatedBy       Int?       @map("CreatedBy")
+  CreatedAt       DateTime?  @default(now()) @map("CreatedAt")
+  IsCancelled     Boolean    @default(false) @map("IsCancelled")
+  IsHidden        Boolean    @default(false) @map("IsHidden")
+  IsFeatured      Boolean    @default(false) @map("IsFeatured")
+
+  Creator     User?       @relation("EventCreator", fields: [CreatedBy], references: [UserID])
+  TicketTypes TicketType[]
+  Seats       Seat[]
+
+  @@map("Events")
+}
+
+model Order {
+  OrderID     Int       @id @default(autoincrement()) @map("OrderID")
+  UserID      Int?      @map("UserID")
+  TicketTypeID Int?     @map("TicketTypeID")
+  OrderDate   DateTime? @default(now()) @map("OrderDate")
+  TotalAmount Decimal?  @map("TotalAmount") @db.Decimal(78, 0)
+  Status      String?   @map("Status") @db.VarChar(50)
+  TxHash      String?   @map("TxHash") @db.VarChar(66)
+
+  User    User?    @relation(fields: [UserID], references: [UserID])
+  TicketType TicketType? @relation(fields: [TicketTypeID], references: [TicketTypeID])
+  Tickets Ticket[] @relation("OrderToTicket")
+
+  @@map("Orders")
+}
+
+model Seat {
+  SeatID     Int      @id @default(autoincrement()) @map("SeatID")
+  EventID    Int?     @map("EventID")
+  SeatNumber String   @map("SeatNumber") @db.VarChar(20)
+  Status     String?  @default("Available") @map("Status") @db.VarChar(20)
+
+  Event   Event?   @relation(fields: [EventID], references: [EventID])
+  Tickets Ticket[]
+
+  @@map("Seats")
+}
+
+model TicketType {
+  TicketTypeID Int      @id @default(autoincrement()) @map("TicketTypeID")
+  EventID      Int?     @map("EventID")
+  TypeName     String?  @map("TypeName") @db.VarChar(50)
+  Price        Decimal? @map("Price") @db.Decimal(78, 0)
+  Quantity     Int?     @map("Quantity")
+
+  Event   Event?   @relation(fields: [EventID], references: [EventID])
+  Tickets Ticket[]
+  Orders  Order[]
+
+  @@map("TicketTypes")
+}
+
+model Ticket {
+  TicketID         Int      @id @default(autoincrement()) @map("TicketID")
+  TicketTypeID     Int?     @map("TicketTypeID")
+  OrderID          Int?     @map("OrderID")
+  OwnerWallet      String   @map("OwnerWallet") @db.VarChar(42)
+  SeatID           Int?     @map("SeatID")
+  TokenID          String?  @unique @map("TokenID") @db.VarChar(255)
+  TransactionHash  String?  @map("TransactionHash") @db.VarChar(66)
+  QRCode           String?  @map("QRCode") @db.VarChar(255)
+  IsUsed           Boolean? @default(false) @map("IsUsed")
+
+  TicketType TicketType? @relation(fields: [TicketTypeID], references: [TicketTypeID])
+  Order      Order?      @relation("OrderToTicket", fields: [OrderID], references: [OrderID])
+  Seat       Seat?       @relation(fields: [SeatID], references: [SeatID])
+  CheckIn    CheckIn?
+
+  @@map("Tickets")
+}
+
+model CheckIn {
+  CheckInID   Int       @id @default(autoincrement()) @map("CheckInID")
+  TicketID    Int?      @unique @map("TicketID")
+  CheckInTime DateTime? @default(now()) @map("CheckInTime")
+  VerifiedBy  String?   @map("VerifiedBy") @db.VarChar(42)
+
+  Ticket Ticket? @relation(fields: [TicketID], references: [TicketID])
+
+  @@map("CheckIns")
+}
+
+model SystemAuditLog {
+  LogID       Int      @id @default(autoincrement()) @map("LogID")
+  AdminID     Int      @map("AdminID")
+  Action      String   @map("Action") @db.VarChar(255)
+  TargetType  String?  @map("TargetType") @db.VarChar(50) // e.g., 'User', 'Event'
+  TargetID    String?  @map("TargetID") @db.VarChar(100)
+  Details     String?  @map("Details") @db.Text
+  CreatedAt   DateTime @default(now()) @map("CreatedAt")
+
+  @@map("SystemAuditLogs")
+}

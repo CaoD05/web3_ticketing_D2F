@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { useLocation } from "react-router-dom";
+import api from "../lib/api";
+import normalizeEvent from "../lib/normalizeEvent";
 import EventCard from "../components/EventCard";
 
 const categories = [
@@ -20,31 +22,60 @@ export default function Events() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState("All");
+    
+    const location = useLocation();
+    const queryParams = new URLSearchParams(location.search);
+    const searchTerm = queryParams.get("search") || "";
 
     useEffect(() => {
-        axios
-            .get("https://localhost:5001/api/events")
-            .then((res) => setEvents(res.data))
+        setLoading(true);
+        api
+            .get("/events")
+            .then((res) => {
+                const normalized = (res.data.data || []).map(normalizeEvent);
+                setEvents(normalized);
+            })
             .catch(() => setEvents([]))
             .finally(() => setLoading(false));
     }, []);
 
     const filteredEvents = useMemo(() => {
-        if (selectedCategory === "All") return events;
-        return events.filter((event) => {
-            const category = event.category || event.type || "Other";
-            return category.toLowerCase() === selectedCategory.toLowerCase();
-        });
-    }, [events, selectedCategory]);
+        let result = events.filter(e => !e.IsHidden && !e.IsCancelled);
+
+        // Filter by category
+        if (selectedCategory !== "All") {
+            result = result.filter((event) => {
+                const category = event.category || event.type || "Other";
+                return category.toLowerCase() === selectedCategory.toLowerCase();
+            });
+        }
+
+        // Filter by search term
+        if (searchTerm) {
+            const lowSearch = searchTerm.toLowerCase();
+            result = result.filter((event) => 
+                (event.title || "").toLowerCase().includes(lowSearch) ||
+                (event.location || "").toLowerCase().includes(lowSearch) ||
+                (event.description || "").toLowerCase().includes(lowSearch)
+            );
+        }
+
+        return result;
+    }, [events, selectedCategory, searchTerm]);
 
     return (
         <div className="bg-gray-100 min-h-screen">
             <div className="px-6 py-8 max-w-[1400px] mx-auto">
                 <div className="flex flex-col gap-4 sm:gap-6">
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-bold">Sự kiện</h1>
+                        <h1 className="text-3xl md:text-4xl font-bold">
+                            {searchTerm ? `Kết quả cho "${searchTerm}"` : "Sự kiện"}
+                        </h1>
                         <p className="text-gray-600 mt-2 max-w-2xl">
-                            Khám phá các sự kiện nổi bật và đặt vé nhanh chóng. Lọc theo thể loại để tìm sự kiện phù hợp với bạn.
+                            {searchTerm 
+                                ? `Tìm thấy ${filteredEvents.length} sự kiện phù hợp với yêu cầu của bạn.`
+                                : "Khám phá các sự kiện nổi bật và đặt vé nhanh chóng. Lọc theo thể loại để tìm sự kiện phù hợp với bạn."
+                            }
                         </p>
                     </div>
 
@@ -65,13 +96,13 @@ export default function Events() {
                         </div>
                     </div>
 
-                    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {loading
-                            ? Array.from({ length: 6 }).map((_, idx) => (
+                            ? Array.from({ length: 8 }).map((_, idx) => (
                                 <EventCard key={idx} loading />
                             ))
                             : filteredEvents.length > 0
-                                ? filteredEvents.map((event) => <EventCard key={event.id || event.title} e={event} />)
+                                ? filteredEvents.map((event) => <EventCard key={event.id ?? event.title} e={event} />)
                                 : (
                                     <div className="col-span-full text-center text-gray-500 py-20 rounded-3xl bg-white shadow-sm">
                                         Không có sự kiện phù hợp với lựa chọn của bạn.
@@ -83,4 +114,3 @@ export default function Events() {
         </div>
     );
 }
-
