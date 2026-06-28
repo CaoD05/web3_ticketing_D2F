@@ -18,7 +18,7 @@ Traditional NFT tickets are public; anyone can see who attends which event. U-Ti
 
 ## Key Features
 
-### 🏢 For Administrators (Admin Portal)
+### For Administrators (Admin Portal)
 - **Global Oversight:** A dedicated, sidebar-driven portal to manage the entire platform.
 - **Role Governance:** Instantly promote users to Organizers or suspend malicious accounts.
 - **Financial Analytics:** Real-time tracking of total platform revenue and ticket volume in **ROSE**.
@@ -61,7 +61,7 @@ Traditional NFT tickets are public; anyone can see who attends which event. U-Ti
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 Setting up U-Ticket is streamlined across three main steps:
 
@@ -86,12 +86,12 @@ Setting up U-Ticket is streamlined across three main steps:
 
 ---
 
-## 🛡️ Security & Integrity
+## Security & Integrity
 
 - **Idempotent Sync:** Every database update is tied to a transaction hash to prevent duplicates.
 - **High-Precision Math:** Database fields are calibrated to `Decimal(78,0)` to handle blockchain-native Wei values.
 - **Hybrid Auth:** Secure JWT-based sessions combined with cryptographically verified wallet connections.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
