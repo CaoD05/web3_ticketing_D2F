@@ -1,4 +1,4 @@
-# 🎟️ U-Ticket: Confidential Web3 Ticketing
+# U-Ticket: Confidential Web3 Ticketing
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Network: Oasis Sapphire](https://img.shields.io/badge/Network-Oasis_Sapphire-blue.svg)
@@ -7,7 +7,7 @@
 
 U-Ticket is a next-generation decentralized ticketing platform built on the **Oasis Sapphire** network. By leveraging confidential smart contracts, U-Ticket provides a private, secure, and scalper-proof environment for event management and ticket issuance.
 
-## 🌟 The Confidential Advantage
+## The Confidential Advantage
 
 Traditional NFT tickets are public; anyone can see who attends which event. U-Ticket changes this:
 - **Private Attendance:** Your ticket ownership and "Used" status are encrypted on-chain.
@@ -16,7 +16,7 @@ Traditional NFT tickets are public; anyone can see who attends which event. U-Ti
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 ### 🏢 For Administrators (Admin Portal)
 - **Global Oversight:** A dedicated, sidebar-driven portal to manage the entire platform.
@@ -24,19 +24,19 @@ Traditional NFT tickets are public; anyone can see who attends which event. U-Ti
 - **Financial Analytics:** Real-time tracking of total platform revenue and ticket volume in **ROSE**.
 - **Content Moderation:** Toggle visibility or feature specific events globally.
 
-### 🎨 For Organizers (Organizer Dashboard)
+### For Organizers (Organizer Dashboard)
 - **Seamless Creation:** Create events with dual-image (Banner/Detail) support and automatic IPFS pinning.
 - **Bulk Airdrops:** Distribution made easy—paste a list of wallets to send free sponsor tickets instantly.
 - **Real-time Sync:** A robust backend listener that ensures your dashboard matches the blockchain state perfectly.
 
-### 🎫 For Attendees (User Experience)
+### For Attendees (User Experience)
 - **NFT Tickets:** verifiable ownership with high-quality metadata and `ipfs://` standard visuals.
 - **Voluntary Refunds:** Change of mind? Return your ticket for an **80% instant refund** before the event starts.
 - **Zero-Friction Check-In:** No QR scanners needed. Confirm your entry with a single tap on your phone.
 
 ---
 
-## 🛠️ Technical Stack
+## Technical Stack
 
 - **Blockchain:** Oasis Sapphire (Confidential EVM)
 - **Smart Contracts:** Solidity 0.8.19 + OpenZeppelin (ERC-721 URI Storage, RBAC)
@@ -47,7 +47,7 @@ Traditional NFT tickets are public; anyone can see who attends which event. U-Ti
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 .
@@ -95,7 +95,3 @@ Setting up U-Ticket is streamlined across three main steps:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Built for privacy. Built for scale. Built for the community. 🚀
